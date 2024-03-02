@@ -86,7 +86,7 @@ def get_chat_response(chat: ChatSession, input: str, conversation_history) -> st
       You may use a little outside knowledge as well if helpful.
       Suggest to the user good and sound investing strategies and cautions about the property. If an int value makes sense to return as a dollar amount, convert that int to US dollars representation.
 
-      Summarize your answer and reasonings on the data you get as part of your answer as well!
+      Summarize your answer and reasonings on the data you get as part of your answer as well! Never show the SQL query though! Only the results.
 
       If you determine that there is no address present within the input just answer the question as best you can.
 
@@ -117,7 +117,7 @@ def addressFetch(input: str):
   response = AddressParserModel.generate_content(
       f"""You are a master at parsing and detecting addresses within text. The user input is: {input}. Within this input show me what address or part of an address do you see? If you encounter a state name such as Washington or California.
       Always abbreviate it to its common two letter standard such as WA or CA respectively within the final answer. For zip codes those are 5 letter numbers. For counties only include the name of the county do not add county at the end. Only provide the address or address part that you find within the input and nothing else.
-      Format the response to as close to a valid address as possible.
+      Format the response to as close to a valid address as possible. Always upper case the whole address you find.
       You can also detect coordinate points if applicable.
       Ignore all other parts of the input.
       If you think there is a possible address within the input but you are unable to give a proper answer say "I think there is a valid address within your question but can't exactly pinpoint it. Could you specify the address more please?".
@@ -168,7 +168,7 @@ def queryGenerator(input: str):
 
         Review the retrieval tool results which are {vectorstore.addressDictSemanticRetreival(input)}. Each main key is a column in the address table with the semantic search results of the address within the user input. Use these values in the query to get the correct attom_id to connect all tables for the query. The distance value is a value of the
         similarity that is available within the database. Always only use results that are below 0.8 in distance as well as prioritize the "one_line" value if the distance is low as that will be the only thing needed to get the attom_id if it is accurate. Never guess "one_line" or "line2" or "line1" if the distance is too high!
-        Understand that the "one_line" column contains the full address of a property. If you are not given the attom_id you can search attom_id through the "address" table via the "one_line" column but use the LIKE clause not the =.
+        Understand that the "one_line" column contains the full address of a property. Always uppercase the address you are using! If you are not given the attom_id you can search attom_id through the "address" table via the "one_line" column but use the LIKE clause not the =.
         If you are going to use line2 and the distance of line2 in retrieval tool is too high be careful as the zip code may sometimes not match so leave out the zip code and use the LIKE clause.
 
         If the input is requesting for similar properties around or compared to an address given use the postal1, county, locality, or even the country_subd columns depending on the request but do not make up values that are not more than .5 distance confident from the address retrieval tool above. Do not use the main address but only these components to find comparables!
