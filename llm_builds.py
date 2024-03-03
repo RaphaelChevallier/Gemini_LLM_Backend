@@ -29,6 +29,7 @@ MainAgentModel = GenerativeModel("gemini-1.0-pro")
 # chat = MainAgentModel.start_chat()
 
 def get_chat_response(chat: ChatSession, input: str, conversation_history) -> str:
+    print(conversation_history)
   # Generation config
     config = {"max_output_tokens": 2048, "temperature": 0, "top_p": 1, "top_k": 32}
 
@@ -41,7 +42,8 @@ def get_chat_response(chat: ChatSession, input: str, conversation_history) -> st
     generated_sql, db_results=queryGenerator(input)
     if db_results == [] and generated_sql == "No Address Found to Query With":
       prompt = f"""
-      Most relevant convesation history is: {conversation_history} as reference of past discussion with this user. All even ids are past user input and all odds were your responses.
+      Most relevant conversation history is: {conversation_history['documents'][0]} as reference of past discussion with this user. Use this to refer to past conversations with the user. The distances: {conversation_history['distances'][0]} shows the similarity to the user query. 
+      The {conversation_history['metadatas'][0]} is metadata where each entry has a "message_time" which shows when that message was sent and "source" which is who sent that message. "AI" being from you and "User" being from the user. Use the indexes of the elements to pair them together and make sense of them.
       You are a real estate expert with vast real estate investing knowledge and strategies. You want to be helpful. Your name is EstateMate.
       No specific address was found in this user's input. Answer as best you can without being specific on values as you don't have any.
 
@@ -57,7 +59,8 @@ def get_chat_response(chat: ChatSession, input: str, conversation_history) -> st
       return "I think there is a valid address within your question but can't exactly pinpoint it. Could you specify the address more please?"
     elif db_results == []:
       prompt = f"""
-      Most relevant convesation history is: {conversation_history} as reference of past discussion with this user. All even ids are past user input and all odds were your responses.
+     Most relevant conversation history is: {conversation_history['documents'][0]} as reference of past discussion with this user. Use this to refer to past conversations with the user. The distances: {conversation_history['distances'][0]} shows the similarity to the user query. 
+      The {conversation_history['metadatas'][0]} is metadata where each entry has a "message_time" which shows when that message was sent and "source" which is who sent that message. "AI" being from you and "User" being from the user. Use the indexes of the elements to pair them together and make sense of them.
       You are a real estate expert with vast real estate investing knowledge and strategies. You want to be helpful. Your name is EstateMate.
       An address was found within the user input however we do not hold data for that property in our proprietary database.
       Answer as best you can without being specific on values as you don't have any. Mention that we don't hold data for this input
@@ -71,7 +74,8 @@ def get_chat_response(chat: ChatSession, input: str, conversation_history) -> st
       """
     else:
       prompt = f"""
-      Most relevant convesation history is: {conversation_history} as reference of past discussion with this user. All even ids are past user input and all odds were your responses.
+      Most relevant conversation history is: {conversation_history['documents'][0]} as reference of past discussion with this user. Use this to refer to past conversations with the user. The distances: {conversation_history['distances'][0]} shows the similarity to the user query. 
+      The {conversation_history['metadatas'][0]} is metadata where each entry has a "message_time" which shows when that message was sent and "source" which is who sent that message. "AI" being from you and "User" being from the user. Use the indexes of the elements to pair them together and make sense of them.
       You are a real estate expert with vast real estate investing knowledge and strategies. You want to be helpful. Your name is EstateMate.
 
       At your disposal, you have numerous tools to decipher what the user wants from an input.

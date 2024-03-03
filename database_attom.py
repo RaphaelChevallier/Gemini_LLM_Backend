@@ -47,7 +47,7 @@ def getTableSchema():
             pgd.objsubid   = c.ordinal_position and
             c.table_schema = st.schemaname and
             c.table_name   = st.relname
-        ) where obj_description(format('%s.%s',c.table_schema,c.table_name)::regclass::oid, 'pg_class') is not null and c.table_name not in ('property', 'avm')
+        ) where obj_description(format('%s.%s',c.table_schema,c.table_name)::regclass::oid, 'pg_class') is not null and c.table_name not in ('property', 'avm', 'brokerage', 'geo_id_v4', 'calculations', 'token', 'vintage', 'user', 'ai_message', 'user_message', 'user_settings')
     """
     try:
         conn = createConn()
@@ -187,3 +187,49 @@ def fetchAddressForVectors():
             cur.close()
         if conn:
             conn.close()
+
+def getUpdatedMessagesChat(user_id):
+    conn = psycopg2.connect(host=os.getenv('USER_DB_HOST'), database=os.getenv('USER_DATABASE'), user=os.getenv('USER_DB_USER'), password=os.getenv('USER_DB_PASSWORD'), port=os.getenv('USER_DB_PORT'))
+    cur = conn.cursor()
+    ai_message_query = f"""
+        SELECT * from ai_message as ai where ai.user_id = '{user_id}' order by created_at desc limit 1
+    """
+    user_message_query = f"""
+        SELECT * from user_message as um where um.user_id = '{user_id}' order by created_at desc limit 1
+    """
+    cur.execute(ai_message_query)
+    ai_message_result = cur.fetchall()
+    cur2 = conn.cursor()
+    cur2.execute(user_message_query)
+    user_message_result = cur2.fetchall()
+    if cur:
+        cur.close()
+    if cur2:
+        cur2.close()
+    if conn:
+        conn.close()
+    return ai_message_result, user_message_result
+
+
+def getAllMessagesChat():
+    conn = psycopg2.connect(host=os.getenv('USER_DB_HOST'), database=os.getenv('USER_DATABASE'), user=os.getenv('USER_DB_USER'), password=os.getenv('USER_DB_PASSWORD'), port=os.getenv('USER_DB_PORT'))
+    cur = conn.cursor()
+    ai_message_query = """
+        SELECT * from ai_message order by created_at 
+    """
+    user_message_query = """
+        SELECT * from user_message order by created_at 
+    """
+    cur.execute(ai_message_query)
+    ai_message_results = cur.fetchall()
+    cur2 = conn.cursor()
+    cur2.execute(user_message_query)
+    user_message_results = cur2.fetchall()
+    if cur:
+        cur.close()
+    if cur2:
+        cur2.close()
+    if conn:
+        conn.close()
+    return ai_message_results, user_message_results
+    

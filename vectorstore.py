@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import chromadb
 from chromadb.utils import embedding_functions
 
@@ -5,8 +7,58 @@ import database_attom
 import llm_builds
 
 chroma_client = chromadb.PersistentClient(path="~/Downloads")
+chroma_client_chat_history = chromadb.PersistentClient(path="~/Downloads/Work")
 sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-mpnet-base-v2")
 
+async def updateChatHistoryStore(user_id):
+    chat_history_collection = chroma_client_chat_history.get_collection(name="chat_history", embedding_function=sentence_transformer_ef)
+
+    ai_message_results, user_message_results = database_attom.getUpdatedMessagesChat(user_id)
+    for row in ai_message_results:
+        formatted_time = row[3].strftime("%A, %B %d, %Y at %I:%M:%S %p")
+        chat_history_collection.add(
+        documents=[row[2]],
+        metadatas=[{'source': 'AI', 'message_time': formatted_time, 'conversation_user': user_id}],
+        ids=[row[0]]
+    )
+    for row in user_message_results:
+        formatted_time = row[3].strftime("%A, %B %d, %Y at %I:%M:%S %p")
+        chat_history_collection.add(
+        documents=row[2],
+        metadatas={'source': 'USER', 'message_time': formatted_time, 'conversation_user': user_id},
+        ids=row[0]
+    )
+
+def createChatHistoryStore():
+    chroma_client_chat_history.reset()
+    try:
+        chat_history_collection = chroma_client_chat_history.get_collection(name="chat_history", embedding_function=sentence_transformer_ef)
+        chroma_client_chat_history.delete_collection(name="chat_history", embedding_function=sentence_transformer_ef)
+    except:
+        print("no chat_history exists yet")
+    chat_history_collection = chroma_client_chat_history.create_collection(name="chat_history", embedding_function=sentence_transformer_ef)
+
+    ai_message_results, user_message_results = database_attom.getAllMessagesChat()
+    for row in ai_message_results:
+        formatted_time = row[3].strftime("%A, %B %d, %Y at %I:%M:%S %p")
+        chat_history_collection.add(
+        documents=[row[2]],
+        metadatas=[{'source': 'AI', 'message_time': formatted_time, 'conversation_user': row[1]}],
+        ids=[row[0]]
+    )
+    for row in user_message_results:
+        formatted_time = row[3].strftime("%A, %B %d, %Y at %I:%M:%S %p")
+        chat_history_collection.add(
+        documents=row[2],
+        metadatas={'source': 'USER', 'message_time': formatted_time, 'conversation_user': row[1]},
+        ids=row[0]
+    )
+    results = chat_history_collection.query(
+            query_texts=['Hello! How can I help you today?'],
+            n_results=1
+        )
+    print(results)
+    
 def createVectorStores():
     one_line, line_two, line_one, county, country_subd, postal_code, locality = database_attom.fetchAddressForVectors()
     chroma_client.reset()
@@ -60,12 +112,7 @@ def createVectorStores():
         print("no locality exists yet")
     locality_collection = chroma_client.create_collection(name="locality", embedding_function=sentence_transformer_ef)
 
-    # try:
-    #     chat_history_collection = chroma_client.get_collection(name="chat_history")
-    #     chroma_client.delete_collection(name="chat_history")
-    # except:
-    #     print("no chat_history exists yet")
-    # chat_history_collection = chroma_client.create_collection(name="chat_history")
+    
 
     one_line_collection.add(
         documents=[row[0] for row in one_line],
@@ -167,7 +214,8 @@ def addressDictSemanticRetreival(input):
                         "county": {"distance": results7['distances'][0][0], "value": results7['documents'][0][0]}}
         # print(address_dict_semantic_retrieval)
         return address_dict_semantic_retrieval
-
+    
 if __name__ == "__main__":
-    createVectorStores()
-    addressDictSemanticRetreival("Seattle")
+    createChatHistoryStore()
+#     createVectorStores()
+#     addressDictSemanticRetreival("Seattle")
