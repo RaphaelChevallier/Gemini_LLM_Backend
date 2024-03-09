@@ -1,5 +1,5 @@
 import os
-from collections import defaultdict
+from collections import defaultdict, deque
 
 import psycopg2
 from dotenv import load_dotenv
@@ -29,6 +29,63 @@ def execute_generated_sql(sql_query):
         # Close the cursor and connection
         if cur:
             cur.close()
+        if conn:
+            conn.close()
+
+def getLatestChatHistoryFromUser(user_id):
+    getLatestUserMessages = f"""
+            SELECT user_query, created_at  from user_message where user_id = '{user_id}' order by created_at desc limit 25;
+        """
+    getLatestAiMessages = f""" 
+            SELECT answer, created_at  from ai_message am where user_id = '{user_id}'  order by created_at desc limit 25;
+        """
+    try:
+        conn = psycopg2.connect(host=os.getenv('USER_DB_HOST'), database=os.getenv('USER_DATABASE'), user=os.getenv('USER_DB_USER'), password=os.getenv('USER_DB_PASSWORD'), port=os.getenv('USER_DB_PORT'))
+        # Connect to the database
+        cur = conn.cursor()
+        cur2 = conn.cursor()
+        cur.execute(getLatestUserMessages)
+        cur2.execute(getLatestAiMessages)
+        userMessages = cur.fetchall()
+        aiMessages = cur2.fetchall()
+        user_messages_dicts = [{'role': 'user', 'message': msg[0], 'created_at': msg[1]} for msg in userMessages]
+        ai_messages_dicts = [{'role': 'model', 'message': msg[0], 'created_at': msg[1]} for msg in aiMessages]
+
+        # Step 3: Merge the two lists
+        combined_messages = user_messages_dicts + ai_messages_dicts
+
+        # Step 4: Sort the combined list by 'created_at'
+        sorted_combined_messages = sorted(combined_messages, key=lambda x: x['created_at'])
+
+        # Step 5: Extract the 'message' part from the sorted list
+        final_messages = deque()
+
+        # Initialize a variable to keep track of the previous role added to final_messages
+        previous_role = None
+
+        # Iterate through sorted_combined_messages
+        for msg in sorted_combined_messages:
+            # Check if the current message's role is the same as the previous one
+            if msg['role'] != previous_role:
+                # If not, add the message to final_messages
+                final_messages.append({'role': msg['role'], 'text': msg['message']})
+                # Update the previous_role with the current message's role
+                previous_role = msg['role']
+        if final_messages[0]['role'] == 'model':
+            final_messages.popleft()
+        if final_messages[-1]['role'] == 'user':
+            final_messages.pop()
+        return final_messages
+    except Exception as e:
+        print("Error from executing getting latest messages query:", e)
+        return
+        # print("The query is: ", sql_query)
+    finally:
+        # Close the cursor and connection
+        if cur:
+            cur.close()
+        if cur2:
+            cur2.close()
         if conn:
             conn.close()
 
@@ -124,6 +181,40 @@ def createConn():
     conn = psycopg2.connect(host=os.getenv('DB_HOST'), database=os.getenv('DATABASE'), user=os.getenv('DB_USER'), password=os.getenv('DB_PASSWORD'))
     return conn
 
+def coordinateClosenessSearch(coordinates):
+    try:
+        conn = createConn()
+        listOfNeighbors = []
+        for coordinate in coordinates:
+            coordinateQuery = f"""
+                SELECT a.one_line,
+                    ST_Distance(
+                    ST_SetSRID(ST_MakePoint(cast(l.longitude  AS decimal(10, 6)), cast(l.latitude  AS decimal(10, 6))), 4326),
+                        ST_GeomFromText('POINT({coordinate[0]} {coordinate[1]})', 4326)) AS distance
+                FROM address as a
+                JOIN location as l ON a.attom_id = l.attom_id
+                WHERE l.latitude IS NOT null AND l.longitude IS NOT null
+                ORDER BY distance ASC
+                LIMIT 4;
+            """
+            try:
+                cur = conn.cursor()
+                cur.execute(coordinateQuery)
+                neighbors = cur.fetchall()
+                for neighbor in neighbors:
+                    listOfNeighbors.append(neighbor[0])
+                if cur:
+                    cur.close()
+            except Exception as e:
+                    print("Error:", e)
+    except Exception as e:
+        print("Error:", e)
+    finally:
+        # Close the cursor and connection
+        if conn:
+            conn.close()
+    return listOfNeighbors
+
 def fetchAddressForVectors():
     try:
         conn = createConn()
@@ -136,13 +227,13 @@ def fetchAddressForVectors():
         locality = list()
         county = list()
         cur = conn.cursor()
-        query_one_line = """SELECT distinct(one_line), attom_id FROM address where one_line is not null;"""
-        query_line2 = """SELECT distinct(line2), attom_id FROM address where line2 is not null;"""
-        query_line1 = """SELECT distinct(line1), attom_id FROM address where line1 is not null;"""
-        query_country_subd = """SELECT distinct(country_subd), attom_id FROM address where country_subd is not null;"""
-        query_postal_code = """SELECT distinct(postal1), attom_id FROM address where postal1 is not null;"""
-        query_locality = """SELECT distinct(locality), attom_id FROM address where locality is not null;"""
-        query_county = """SELECT distinct(county), attom_id FROM address where county is not null;"""
+        query_one_line = """SELECT distinct(one_line), attom_id FROM address where one_line is not null and country is not null;"""
+        query_line2 = """SELECT distinct(line2), attom_id FROM address where line2 is not null and country is not null;"""
+        query_line1 = """SELECT distinct(line1), attom_id FROM address where line1 is not null and country is not null;"""
+        query_country_subd = """SELECT distinct(country_subd), attom_id FROM address where country_subd is not null and country is not null;"""
+        query_postal_code = """SELECT distinct(postal1), attom_id FROM address where postal1 is not null and country is not null;"""
+        query_locality = """SELECT distinct(locality), attom_id FROM address where locality is not null and country is not null;"""
+        query_county = """SELECT distinct(county), attom_id FROM address where county is not null and country is not null;"""
         cur.execute(query_line1)
         line1_results = cur.fetchall()
         for row in line1_results:
@@ -209,27 +300,4 @@ def getUpdatedMessagesChat(user_id):
     if conn:
         conn.close()
     return ai_message_result, user_message_result
-
-
-def getAllMessagesChat():
-    conn = psycopg2.connect(host=os.getenv('USER_DB_HOST'), database=os.getenv('USER_DATABASE'), user=os.getenv('USER_DB_USER'), password=os.getenv('USER_DB_PASSWORD'), port=os.getenv('USER_DB_PORT'))
-    cur = conn.cursor()
-    ai_message_query = """
-        SELECT * from ai_message order by created_at 
-    """
-    user_message_query = """
-        SELECT * from user_message order by created_at 
-    """
-    cur.execute(ai_message_query)
-    ai_message_results = cur.fetchall()
-    cur2 = conn.cursor()
-    cur2.execute(user_message_query)
-    user_message_results = cur2.fetchall()
-    if cur:
-        cur.close()
-    if cur2:
-        cur2.close()
-    if conn:
-        conn.close()
-    return ai_message_results, user_message_results
     
