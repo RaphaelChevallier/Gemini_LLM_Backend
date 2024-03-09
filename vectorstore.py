@@ -9,7 +9,6 @@ from google.oauth2.service_account import Credentials
 from vertexai.generative_models import Content, GenerativeModel, Part
 
 import database_attom
-import llm_builds
 
 chroma_client = chromadb.PersistentClient(path="~/Downloads")
 chroma_client_chat_history = chromadb.PersistentClient(path="~/Downloads/Work")
@@ -43,7 +42,7 @@ def createChatHistoryStore():
         print("no chat_history exists yet")
     chat_history_collection = chroma_client_chat_history.create_collection(name="chat_history", embedding_function=sentence_transformer_ef)
 
-    ai_message_results, user_message_results = database_attom.getAllMessagesChat()
+    ai_message_results, user_message_results = database_attom.getUpdatedMessagesChat()
     for row in ai_message_results:
         formatted_time = row[3].strftime("%A, %B %d, %Y at %I:%M:%S %p")
         chat_history_collection.add(
@@ -131,124 +130,6 @@ def createVectorStores():
 
     print("Finished initializing vector stores!")
     return one_line_collection, county_collection, postal_code_collection, country_subd_collection, locality_collection
-
-# def addressDictSemanticRetreival(input, mainAgent, relevant_history, chat):
-#     one_line_collection = chroma_client.get_collection(name="one_line" , embedding_function=sentence_transformer_ef)
-
-#     county_collection = chroma_client.get_collection(name="county", embedding_function=sentence_transformer_ef)
-
-#     postal_code_collection = chroma_client.get_collection(name="postal_code", embedding_function=sentence_transformer_ef)
-
-#     country_subd_collection = chroma_client.get_collection(name="country_subd", embedding_function=sentence_transformer_ef)
-
-#     locality_collection = chroma_client.get_collection(name="locality", embedding_function=sentence_transformer_ef)
-
-#     # chat_history_collection = chroma_client.get_collection(name="chat_history", embedding_function=sentence_transformer_ef)
-#     address_find = llm_builds.addressFetch(input, mainAgent, relevant_history, chat)
-#     print(address_find)
-#     foundValidAddress = True
-#     foundAddresses = []
-#     coordinatesFound = []
-#     if address_find == "No Address Found":
-#         return "No Address Found to Query With", input, False, coordinatesFound
-#     elif address_find == "I think there is a valid address within your question but can't exactly pinpoint it. Could you specify the address more please?":
-#         return address_find, input, False, coordinatesFound
-#     else:
-#         resultList = []
-#         splitting = address_find.split("\n---\n")
-#         newInput = splitting[1]
-#         addresses = splitting[0].split("; ")
-#         for addressObject in addresses:
-#             splitter = addressObject.split(" -- ")
-#             address = splitter[0]
-#             addressType = splitter[1]
-#             results = one_line_collection.query(
-#                 query_texts=[address],
-#                 n_results=1
-#             )
-
-#             results4 = postal_code_collection.query(
-#                 query_texts=[address],
-#                 n_results=1
-#             )
-
-#             results5 = locality_collection.query(
-#                 query_texts=[address],
-#                 n_results=1
-#             )
-
-#             results6 = country_subd_collection.query(
-#                 query_texts=[address],
-#                 n_results=1
-#             )
-
-#             results7 = county_collection.query(
-#                 query_texts=[address],
-#                 n_results=1
-#             )
-
-#             address_dict_semantic_retrieval = {"one_line": {"distance": results['distances'][0][0], "value": results['documents'][0][0]},
-#                             "postal1": {"distance": results4['distances'][0][0], "value": results4['documents'][0][0]}, "locality": {"distance": results5['distances'][0][0], "value": results5['documents'][0][0]}, "country_subd": {"distance": results6['distances'][0][0], "value": results6['documents'][0][0]},
-#                             "county": {"distance": results7['distances'][0][0], "value": results7['documents'][0][0]}}
-#             resultList.append(address_dict_semantic_retrieval)
-#             if address_dict_semantic_retrieval['one_line']['distance'] < .04:
-#                 foundAddresses.append(address_dict_semantic_retrieval['one_line']['value'])
-#                 newInput = newInput.replace("@", address_dict_semantic_retrieval['one_line']['value'], 1)
-#                 coordinatesFound.append(None)
-#             elif address_dict_semantic_retrieval['locality']['distance'] < .03 and addressType == 'locality':
-#                 foundAddresses.append(address_dict_semantic_retrieval['locality']['value'])
-#                 newInput = newInput.replace("@", address_dict_semantic_retrieval['locality']['value'], 1)
-#                 coordinatesFound.append(None)
-#             elif address_dict_semantic_retrieval['postal1']['distance'] < .03 and addressType == 'postalCode':
-#                 foundAddresses.append(address_dict_semantic_retrieval['postal1']['value'])
-#                 newInput = newInput.replace("@", address_dict_semantic_retrieval['postal1']['value'], 1)
-#                 coordinatesFound.append(None)
-#             elif address_dict_semantic_retrieval['county']['distance'] < .03 and addressType == 'county':
-#                 foundAddresses.append(address_dict_semantic_retrieval['county']['value'])
-#                 newInput = newInput.replace("@", address_dict_semantic_retrieval['county']['value'], 1)
-#                 coordinatesFound.append(None)
-#             elif address_dict_semantic_retrieval['country_subd']['distance'] < .03 and addressType == 'state':
-#                 foundAddresses.append(address_dict_semantic_retrieval['country_subd']['value'])
-#                 newInput = newInput.replace("@", address_dict_semantic_retrieval['country_subd']['value'], 1)
-#                 coordinatesFound.append(None)
-#             else:
-#                 url = ""
-#                 payload = {}
-#                 if addressType != 'address':
-#                     url = f"https://api.radar.io/v1/search/autocomplete?query={address}&countryCode=US&layers={addressType}"
-#                     headers = {
-#                     'Authorization': os.getenv('RADAR_PROJECT_PUBLIC_KEY'),
-#                     }
-#                 else:
-#                     url = f"https://api.radar.io/v1/search/autocomplete?query={address}&countryCode=US&expandUnits=true&layers={addressType}"
-#                     headers = {
-#                     'Authorization': os.getenv('RADAR_PROJECT_PUBLIC_KEY'),
-#                     'expandUnits': 'true'
-#                     }
-#                 try:
-#                     response = requests.request("GET", url, headers=headers, data=payload)
-#                     if response.json()['addresses']:
-#                         address = response.json()['addresses'][0]['formattedAddress'][:-3]
-#                         foundAddresses.append(address.upper())
-#                         newInput = newInput.replace("@", address.upper(), 1)
-#                         coordinatesFound.append(response.json()['addresses'][0]['geometry']['coordinates'])
-#                     else:
-#                         newInput = newInput.replace("@", address.upper(), 1)
-#                         foundAddresses.append(address.upper())
-#                         foundValidAddress = False
-#                         coordinatesFound.append(None)
-#                 except Exception as e:
-#                     newInput = newInput.replace("@", address.upper(), 1)
-#                     foundAddresses.append(address.upper())
-#                     foundValidAddress = False
-#                     coordinatesFound.append(None)
-
-#         print("End result")
-#         print(newInput)
-#         print(resultList)
-#         print(foundValidAddress)
-#         print(coordinatesFound)
-#         return resultList, newInput, foundValidAddress, coordinatesFound, foundAddresses
     
 
 def addressDictSemanticRetreival(input, address_find):
@@ -316,56 +197,6 @@ def addressDictSemanticRetreival(input, address_find):
             print(addressObject)
             address = addressObject[0]
             addressType = addressObject[1]
-            # results = one_line_collection.query(
-            #     query_texts=[address],
-            #     n_results=1
-            # )
-
-            # results4 = postal_code_collection.query(
-            #     query_texts=[address],
-            #     n_results=1
-            # )
-
-            # results5 = locality_collection.query(
-            #     query_texts=[address],
-            #     n_results=1
-            # )
-
-            # results6 = country_subd_collection.query(
-            #     query_texts=[address],
-            #     n_results=1
-            # )
-
-            # results7 = county_collection.query(
-            #     query_texts=[address],
-            #     n_results=1
-            # )
-
-            # address_dict_semantic_retrieval = {"one_line": {"distance": results['distances'][0][0], "value": results['documents'][0][0]},
-            #                 "postal1": {"distance": results4['distances'][0][0], "value": results4['documents'][0][0]}, "locality": {"distance": results5['distances'][0][0], "value": results5['documents'][0][0]}, "country_subd": {"distance": results6['distances'][0][0], "value": results6['documents'][0][0]},
-            #                 "county": {"distance": results7['distances'][0][0], "value": results7['documents'][0][0]}}
-            # resultList.append(address_dict_semantic_retrieval)
-            # if address_dict_semantic_retrieval['one_line']['distance'] < .04:
-            #     foundAddresses.append(address_dict_semantic_retrieval['one_line']['value'])
-            #     newInput = newInput.replace("@", address_dict_semantic_retrieval['one_line']['value'], 1)
-            #     coordinatesFound.append(None)
-            # elif address_dict_semantic_retrieval['locality']['distance'] < .03 and addressType == 'locality':
-            #     foundAddresses.append(address_dict_semantic_retrieval['locality']['value'])
-            #     newInput = newInput.replace("@", address_dict_semantic_retrieval['locality']['value'], 1)
-            #     coordinatesFound.append(None)
-            # elif address_dict_semantic_retrieval['postal1']['distance'] < .03 and addressType == 'postalCode':
-            #     foundAddresses.append(address_dict_semantic_retrieval['postal1']['value'])
-            #     newInput = newInput.replace("@", address_dict_semantic_retrieval['postal1']['value'], 1)
-            #     coordinatesFound.append(None)
-            # elif address_dict_semantic_retrieval['county']['distance'] < .03 and addressType == 'county':
-            #     foundAddresses.append(address_dict_semantic_retrieval['county']['value'])
-            #     newInput = newInput.replace("@", address_dict_semantic_retrieval['county']['value'], 1)
-            #     coordinatesFound.append(None)
-            # elif address_dict_semantic_retrieval['country_subd']['distance'] < .03 and addressType == 'state':
-            #     foundAddresses.append(address_dict_semantic_retrieval['country_subd']['value'])
-            #     newInput = newInput.replace("@", address_dict_semantic_retrieval['country_subd']['value'], 1)
-            #     coordinatesFound.append(None)
-            # else:
             url = ""
             payload = {}
             if addressType != 'address':
@@ -395,26 +226,58 @@ def addressDictSemanticRetreival(input, address_find):
                             newInput = newInput.replace('@', improvedAddress.upper(), 1)
                         else:
                             newInput = newInput.replace(address, improvedAddress.upper(), 1)
+
                     elif addressType == 'locality':
+                        improvedLocality = response.json()['addresses'][0]['city']
+                        mostAccurateDB = locality_collection.query(
+                            query_texts=[improvedLocality],
+                            n_results=1
+                        )
+                        if mostAccurateDB['distances'][0][0] < .03:
+                            improvedLocality = mostAccurateDB['documents'][0][0]
                         if '@' in newInput:
-                            newInput = newInput.replace('@', response.json()['addresses'][0]['city'].upper(), 1)
+                            newInput = newInput.replace('@', improvedLocality.upper(), 1)
                         else:
-                            newInput = newInput.replace(address, response.json()['addresses'][0]['city'].upper(), 1)
+                            newInput = newInput.replace(address, improvedLocality.upper(), 1)
+
                     elif addressType == 'county':
+                        improvedCounty = response.json()['addresses'][0]['county'][:-7]
+                        mostAccurateDB = county_collection.query(
+                            query_texts=[improvedCounty],
+                            n_results=1
+                        )
+                        if mostAccurateDB['distances'][0][0] < .03:
+                            improvedCounty = mostAccurateDB['documents'][0][0]
                         if '@' in newInput:
-                            newInput = newInput.replace('@', response.json()['addresses'][0]['county'][:-7].upper(), 1)
+                            newInput = newInput.replace('@', improvedCounty.upper(), 1)
                         else:
-                            newInput = newInput.replace(address, response.json()['addresses'][0]['county'][:-7].upper(), 1)
+                            newInput = newInput.replace(address, improvedCounty.upper(), 1)
+
                     elif addressType == 'postalCode':
+                        improvedPostalCode = response.json()['addresses'][0]['postalCode']
+                        mostAccurateDB = postal_code_collection.query(
+                            query_texts=[improvedPostalCode],
+                            n_results=1
+                        )
+                        if mostAccurateDB['distances'][0][0] < .03:
+                            improvedPostalCode = mostAccurateDB['documents'][0][0]
                         if '@' in newInput:
-                            newInput = newInput.replace('@', response.json()['addresses'][0]['postalCode'].upper(), 1)
+                            newInput = newInput.replace('@', improvedPostalCode.upper(), 1)
                         else:
-                            newInput = newInput.replace(address, response.json()['addresses'][0]['postalCode'].upper(), 1)
+                            newInput = newInput.replace(address, improvedPostalCode.upper(), 1)
+                    
                     elif addressType == 'state':
+                        improvedState = response.json()['addresses'][0]['stateCode']
+                        mostAccurateDB = country_subd_collection.query(
+                            query_texts=[improvedState],
+                            n_results=1
+                        )
+                        if mostAccurateDB['distances'][0][0] < .03:
+                            improvedState = mostAccurateDB['documents'][0][0]
                         if '@' in newInput:
-                            newInput = newInput.replace('@', response.json()['addresses'][0]['stateCode'].upper(), 1)
+                            newInput = newInput.replace('@', improvedState.upper(), 1)
                         else:
-                            newInput = newInput.replace(address, response.json()['addresses'][0]['stateCode'].upper(), 1)
+                            newInput = newInput.replace(address, improvedState.upper(), 1)
                     coordinatesFound.append(response.json()['addresses'][0]['geometry']['coordinates'])
                 else:
                     newInput = newInput.replace(address, address.upper(), 1)
@@ -436,7 +299,7 @@ def addressDictSemanticRetreival(input, address_find):
     
 if __name__ == "__main__":
     createChatHistoryStore()
-    # createVectorStores()
+    createVectorStores()
     # credentials = Credentials.from_service_account_file(os.getenv('GOOGLE_KEY_PATH'), scopes=['https://www.googleapis.com/auth/cloud-platform'])
     # if credentials.expired:
     #     credentials.refresh(Request())
