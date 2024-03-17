@@ -14,15 +14,7 @@ import vectorstore
 
 load_dotenv('.env')
 
-credentials = Credentials.from_service_account_file(os.getenv('GOOGLE_KEY_PATH'), scopes=['https://www.googleapis.com/auth/cloud-platform'])
-if credentials.expired:
-   credentials.refresh(Request())
-
-vertexai.init(project = os.getenv('GOOGLE_PROJECT_ID'), location = os.getenv('GOOGLE_REGION'), credentials = credentials)
-
-PostgresAgentModel = GenerativeModel("gemini-1.0-pro")
-
-def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel, relevant_history) -> str:
+def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel, relevant_history, PostgresAgentModel: GenerativeModel, addressChat: ChatSession) -> str:
   # Generation config
     config = {"max_output_tokens": 1048, "temperature": 0, "top_p": 1, "top_k": 32}
 
@@ -37,35 +29,32 @@ def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel,
 
     # if dbNeededResult == "True":
 
-    db_results, newInput, listOfNeighbors, addressesFound = queryGenerator(input, mainAgent, table_schema, relevant_history, chat)
+    db_results, newInput, listOfNeighbors, addressesFound = queryGenerator(input, mainAgent, table_schema, relevant_history, PostgresAgentModel, addressChat)
 
-    for d in db_results:
-        new_dict = {key: value for key, value in d.items() if value is not None}
-        if len(new_dict) != 0:
-            db_results.append(new_dict)
-        db_results.remove(d)
+    if db_results != "No Address Found to Query With" and db_results !=  "I think there is a valid address within your question but can't exactly pinpoint it. Could you specify the address more please?" and db_results != []:
+        print(db_results)
+        for d in db_results:
+            new_dict = {key: value for key, value in d.items() if value is not None}
+            if len(new_dict) != 0:
+                db_results.append(new_dict)
+            db_results.remove(d)
     if db_results == "No Address Found to Query With":
+        config = {"max_output_tokens": 500, "temperature": 0.1, "top_p": 1, "top_k": 32}
         prompt = f"""
         You are a real estate expert with vast real estate investing knowledge and strategies. You want to be helpful. Your name is EstateMate.
         No specific address was found in this user's input. Answer as best you can without being specific on values as you don't have any.
 
         Here is a list of past messages you had with this user that may be helpful in answering the user's input: {relevant_history['documents'][0]}. And here's the metadata of those messages respectively: {relevant_history['metadatas'][0]}. The "message_time" in the metadata is the time that message was sent and the "source" in the metadata was who sent that message.
         If you see a past message that answers or helps to answer the current question you can use it as reasoning.
-        
-        You may use a little outside knowledge as well if helpful.
-        Suggest to the user good and sound investing strategies and cautions about the property. If an int value makes sense to return as a dollar amount, convert that int to US dollars representation.
-        Don't give tips and tricks about real estate investing if you have no answer to the original question.
 
-        The first thing in your answer if you derived an address from the user input is to show what address you derived which are: {addressesFound}.
-        If you determine that there is no address present within the input just answer the question as best you can.
-
-        Use bulletpoints and headings and other formatting to format your answer and avoid unnecessary jargon!
+        Use bulletpoints and headings and other formatting to format your answer and avoid unnecessary jargon and text!
 
         ---The user input question to answer is: {newInput}---
         """
     elif db_results == "I think there is a valid address within your question but can't exactly pinpoint it. Could you specify the address more please?":
         return "I think there is a valid address within your question but can't exactly pinpoint it. Could you specify the address more please?"
     elif db_results == []:
+        config = {"max_output_tokens": 1048, "temperature": 0.1, "top_p": 1, "top_k": 32}
         prompt = f"""
         You are a real estate expert with vast real estate investing knowledge and strategies. You want to be helpful. Your name is EstateMate.
         An address was found within the user input however we do not hold data for that property in our proprietary database.
@@ -117,11 +106,11 @@ def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel,
     responses = chat.send_message(prompt, stream=True, generation_config=config, safety_settings=safety_config)
     for chunk in responses:
         text_response.append(chunk.text)
-        # print(text_response)
+        print(text_response)
     return "".join(text_response)
 
 
-def addressFetch(input: str, mainAgent: GenerativeModel, relevant_history, chat: ChatSession):
+def addressFetch(input: str, mainAgent: GenerativeModel, relevant_history, addressChat: ChatSession):
     parameters = {
         "max_output_tokens": 1000,
         "temperature": 0,
@@ -134,7 +123,7 @@ def addressFetch(input: str, mainAgent: GenerativeModel, relevant_history, chat:
         generative_models.HarmCategory.HARM_CATEGORY_HARASSMENT: generative_models.HarmBlockThreshold.BLOCK_ONLY_HIGH,
     }
 
-    response = chat.send_message(
+    response = addressChat.send_message(
             f"""
             User Input: "{input}".
 
@@ -149,13 +138,16 @@ def addressFetch(input: str, mainAgent: GenerativeModel, relevant_history, chat:
             generation_config=parameters,
             safety_settings=safety_config,
     )
-#   print(f"Address Parser: {response.text}")
     if response.candidates and response.candidates[0].content.parts[0].function_call.name == "get_confirmed_available_addresses_from_input_and_update_input":
         print(response.candidates[0].content.parts[0])
         # Extract the arguments to use in your API call
-        address_find = (
-            response.candidates[0].content.parts[0].function_call.args["address_find"]
-        )
+        try:
+            address_find = (
+                response.candidates[0].content.parts[0].function_call.args["address_find"]
+            )
+        except Exception as e:
+            address_find = []
+
         # newInput = (
         #     response.candidates[0].content.parts[0].function_call.args["newInput"]
         # )
@@ -169,7 +161,7 @@ def addressFetch(input: str, mainAgent: GenerativeModel, relevant_history, chat:
             return "No Address Found to Query With", input, False, [], []
 
 
-def queryGenerator(input: str, mainAgent: GenerativeModel, table_schema, relevant_history, chat: ChatSession):
+def queryGenerator(input: str, mainAgent: GenerativeModel, table_schema, relevant_history, PostgresAgentModel: GenerativeModel, addressChat: ChatSession):
     config = {"max_output_tokens": 2048, "temperature": 0, "top_p": 1, "top_k": 32}
 
     # Safety config
@@ -177,13 +169,13 @@ def queryGenerator(input: str, mainAgent: GenerativeModel, table_schema, relevan
         generative_models.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: generative_models.HarmBlockThreshold.BLOCK_NONE,
         generative_models.HarmCategory.HARM_CATEGORY_HARASSMENT: generative_models.HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
     }
-    addressDictSemanticRetreival, newInput, foundValidAddress, coordinates, addressesFound  = addressFetch(input, mainAgent, relevant_history, chat)
+    addressDictSemanticRetreival, newInput, foundValidAddress, coordinates, addressesFound  = addressFetch(input, mainAgent, relevant_history, addressChat)
     if addressDictSemanticRetreival == "No Address Found to Query With":
         results = "No Address Found to Query With"
-        return results, newInput, coordinates
+        return results, newInput, coordinates, addressesFound
     if addressDictSemanticRetreival == "I think there is a valid address within your question but can't exactly pinpoint it. Could you specify the address more please?":
         results = "I think there is a valid address within your question but can't exactly pinpoint it. Could you specify the address more please?"
-        return results, newInput, coordinates
+        return results, newInput, coordinates, addressesFound
     prefix = f"""
             You are an agent designed to interact with a postgres SQL database.
             Given an input question, create a syntactically correct postresql query to run that would most accurately return the data needed to, then look at the results of the query and return the answer with the data from the database.

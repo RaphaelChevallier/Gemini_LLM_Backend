@@ -149,9 +149,11 @@ def addressDictSemanticRetreival(input, address_find):
     coordinatesFound = []
     newAddressFind = []
     if address_find == "No Address Found":
-        return "No Address Found to Query With", input, False, coordinatesFound
+        return "No Address Found to Query With", input, False, coordinatesFound, foundAddresses
+    elif address_find == []:
+        return "No Address Found to Query With", input, False, coordinatesFound, foundAddresses
     elif address_find == "I think there is a valid address within your question but can't exactly pinpoint it. Could you specify the address more please?":
-        return address_find, input, False, coordinatesFound
+        return address_find, input, False, coordinatesFound, foundAddresses
     else:
         resultList = []
         currentAddressComponents = {}
