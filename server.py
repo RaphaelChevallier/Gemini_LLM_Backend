@@ -1,6 +1,5 @@
 import asyncio
 import os
-import uuid
 from string import ascii_uppercase
 
 from dotenv import load_dotenv
@@ -9,7 +8,6 @@ from flask_cors import CORS
 from flask_socketio import (Namespace, SocketIO, emit, join_room, leave_room,
                             send)
 
-import llm_builds
 import main
 import vectorstore
 
@@ -59,6 +57,12 @@ def connected():
     """event listener when client connects to the server"""
     print(request.sid)
     print("client has connected")
+
+@socketio.on('tokenCount')
+def handle_message(data):
+    """event listener when client types a message to get current token count"""
+    response = main.countTokens(data['userMessage'])
+    emit('tokenCount', response.total_tokens)
 
 @socketio.on('data')
 def handle_message(data):

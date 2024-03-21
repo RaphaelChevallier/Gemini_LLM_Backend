@@ -21,6 +21,9 @@ MainAgentModel = GenerativeModel("gemini-1.0-pro")
 AddressAgentModel = GenerativeModel("gemini-1.0-pro", tools=[llm_builds.correct_address_input])
 PostgresAgentModel = GenerativeModel("gemini-1.0-pro")
 
+def countTokens(input):
+    return MainAgentModel.count_tokens(input)
+
 def questionLLMs(input, user_id):
 
     chroma_client_chat_history = chromadb.PersistentClient(path="~/Downloads/Work")

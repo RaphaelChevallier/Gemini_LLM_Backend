@@ -31,7 +31,7 @@ def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel,
 
     db_results, newInput, listOfNeighbors, addressesFound = queryGenerator(input, mainAgent, table_schema, relevant_history, PostgresAgentModel, addressChat)
 
-    if db_results != "No Address Found to Query With" and db_results !=  "I think there is a valid address within your question but can't exactly pinpoint it. Could you specify the address more please?" and db_results != []:
+    if db_results and db_results != "No Address Found to Query With" and db_results !=  "I think there is a valid address within your question but can't exactly pinpoint it. Could you specify the address more please?" and db_results != []:
         print(db_results)
         for d in db_results:
             new_dict = {key: value for key, value in d.items() if value is not None}
