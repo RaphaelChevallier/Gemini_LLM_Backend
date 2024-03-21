@@ -127,10 +127,10 @@ def addressFetch(input: str, mainAgent: GenerativeModel, relevant_history, addre
             f"""
             User Input: "{input}".
 
-            Derive all addresses or address components such as (zip codes, cities, counties, states) from the user input.
+            Derive all addresses or address components such as (zip codes, cities, counties, states) from the user input or past messages and context.
             Explicitly always use the tool "get_confirmed_available_addresses_from_input_and_update_input"!
 
-            You must fill the parameters of  "address_find" for this tool using the user's input.
+            You must fill the parameters of  "address_find" for this tool using the user's input or past messages and context.
             **"address_find" being an array of arrays containing all addresses or names of potential location components (e.g: zip code, state, county, locality) you found within the context of the original user input. Include as an array where:
             - Index 0: The identified address-related information component (string).
             - Index 1: The category of the component (string) - 'base_address', 'postalCode' for zip codes, 'county' for **names** of counties, 'locality' for localities (**names** of cities, towns), or 'state' for **names** states. For states abbreviate to its common two letter standard. **
