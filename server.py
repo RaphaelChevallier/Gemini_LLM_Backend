@@ -3,7 +3,7 @@ import os
 from string import ascii_uppercase
 
 from dotenv import load_dotenv
-from flask import Flask, redirect, render_template, request, session, url_for
+from flask import Flask, redirect, render_template, request, session, url_for, jsonify
 from flask_cors import CORS
 from flask_socketio import (Namespace, SocketIO, emit, join_room, leave_room,
                             send)
@@ -50,37 +50,45 @@ socketio = SocketIO(app,cors_allowed_origins="*")
 # socketio.on_namespace(UserNamespace('/user_<user_id>'))
 # socketio.on_namespace('user_32124312')(UserNamespace)
 
+@app.route("/llm_server/hello")
+def hello():
+    return "<h1 style='color:blue'>Hello There!</h1>"
 
-@socketio.on("connect")
-def connected():
-    session.clear()
-    """event listener when client connects to the server"""
-    print(request.sid)
-    print("client has connected")
+@app.route("/llm_server/tokenCount" , methods=["POST"])
+def handleData():
+    userMessage = request.json['userMessage']
+    return main.countTokens(userMessage)
 
-@socketio.on('tokenCount')
-def handle_message(data):
-    """event listener when client types a message to get current token count"""
-    response = main.countTokens(data['userMessage'])
-    emit('tokenCount', response.total_tokens)
+# @socketio.on("connect")
+# def connected():
+#     session.clear()
+#     """event listener when client connects to the server"""
+#     print(request.sid)
+#     print("client has connected")
 
-@socketio.on('data')
-def handle_message(data):
-    """event listener when client types a message"""
-    print("\n\n")
-    response = main.questionLLMs(data['userMessage'], data['userId'])
-    print("\n\n")
-    # print("data from the front end: ",str(data['userMessage']))
-    # print(response)
-    emit('data', response) 
-    asyncio.run(vectorstore.updateChatHistoryStore(data['userId']))
+# @socketio.on('tokenCount')
+# def handle_message(data):
+#     """event listener when client types a message to get current token count"""
+#     response = main.countTokens(data['userMessage'])
+#     emit('tokenCount', response.total_tokens)
 
-@socketio.on("disconnect")
-def disconnected():
-    session.clear()
-    """event listener when client disconnects to the server"""
-    print("user disconnected")
+# @socketio.on('data')
+# def handle_message(data):
+#     """event listener when client types a message"""
+#     print("\n\n")
+#     response = main.questionLLMs(data['userMessage'], data['userId'])
+#     print("\n\n")
+#     # print("data from the front end: ",str(data['userMessage']))
+#     # print(response)
+#     emit('data', response) 
+#     asyncio.run(vectorstore.updateChatHistoryStore(data['userId']))
+
+# @socketio.on("disconnect")
+# def disconnected():
+#     session.clear()
+#     """event listener when client disconnects to the server"""
+#     print("user disconnected")
 
 if(__name__) == "__main__":
-    # socketio.run(app, debug = False, port=5001)
+    # socketio.run(app, host='0.0.0.0', port=5001)
     socketio.run(app, debug = True, port=5001)
