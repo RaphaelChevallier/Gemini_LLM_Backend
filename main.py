@@ -40,7 +40,7 @@ def questionLLMs(input, user_id):
 
     relevant_history = chat_history_collection.query(
             query_texts=[input],
-            # where={"conversation_user": {"$eq": user_id}},
+            where={"conversation_user": {"$eq": user_id}},
             n_results=3
         )
     response = llm_builds.get_chat_response(chat, input, MainAgentModel, relevant_history, PostgresAgentModel, addressChat)

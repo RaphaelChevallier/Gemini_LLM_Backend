@@ -10,8 +10,8 @@ from vertexai.generative_models import Content, GenerativeModel, Part
 
 import database_attom
 
-chroma_client = chromadb.PersistentClient(path="~/Downloads")
-chroma_client_chat_history = chromadb.PersistentClient(path="~/Downloads/Work")
+chroma_client = chromadb.PersistentClient(path=os.getenv('CHROMA_MAIN'))
+chroma_client_chat_history = chromadb.PersistentClient(path=os.getenv('CHROMA_CLIENT_HISTORY'))
 sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-mpnet-base-v2")
 
 async def updateChatHistoryStore(user_id):
@@ -302,11 +302,3 @@ def addressDictSemanticRetreival(input, address_find):
 if __name__ == "__main__":
     createChatHistoryStore()
     createVectorStores()
-    # credentials = Credentials.from_service_account_file(os.getenv('GOOGLE_KEY_PATH'), scopes=['https://www.googleapis.com/auth/cloud-platform'])
-    # if credentials.expired:
-    #     credentials.refresh(Request())
-
-    # vertexai.init(project = os.getenv('GOOGLE_PROJECT_ID'), location = os.getenv('GOOGLE_REGION'), credentials = credentials)
-
-    # MainAgentModel = GenerativeModel("gemini-1.0-pro")
-    # addressDictSemanticRetreival("Sure the whole address is 201 Galer St unit 104, Seattle, WA 98109", MainAgentModel)
