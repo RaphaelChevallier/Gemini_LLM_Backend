@@ -42,26 +42,26 @@ def createChatHistoryStore():
         print("no chat_history exists yet")
     chat_history_collection = chroma_client_chat_history.create_collection(name="chat_history", embedding_function=sentence_transformer_ef)
 
-    ai_message_results, user_message_results = database_attom.getUpdatedMessagesChat()
-    for row in ai_message_results:
-        formatted_time = row[3].strftime("%A, %B %d, %Y at %I:%M:%S %p")
-        chat_history_collection.add(
-        documents=[row[2]],
-        metadatas=[{'source': 'model', 'message_time': formatted_time, 'conversation_user': row[1]}],
-        ids=[row[0]]
-    )
-    for row in user_message_results:
-        formatted_time = row[3].strftime("%A, %B %d, %Y at %I:%M:%S %p")
-        chat_history_collection.add(
-        documents=row[2],
-        metadatas={'source': 'user', 'message_time': formatted_time, 'conversation_user': row[1]},
-        ids=row[0]
-    )
-    results = chat_history_collection.query(
-            query_texts=['Hello! How can I help you today?'],
-            n_results=1
-        )
-    print(results)
+    # ai_message_results, user_message_results = database_attom.getUpdatedMessagesChat()
+    # for row in ai_message_results:
+    #     formatted_time = row[3].strftime("%A, %B %d, %Y at %I:%M:%S %p")
+    #     chat_history_collection.add(
+    #     documents=[row[2]],
+    #     metadatas=[{'source': 'model', 'message_time': formatted_time, 'conversation_user': row[1]}],
+    #     ids=[row[0]]
+    # )
+    # for row in user_message_results:
+    #     formatted_time = row[3].strftime("%A, %B %d, %Y at %I:%M:%S %p")
+    #     chat_history_collection.add(
+    #     documents=row[2],
+    #     metadatas={'source': 'user', 'message_time': formatted_time, 'conversation_user': row[1]},
+    #     ids=row[0]
+    # )
+    # results = chat_history_collection.query(
+    #         query_texts=['Hello! How can I help you today?'],
+    #         n_results=1
+    #     )
+    # print(results)
     
 def createVectorStores():
     one_line, county, country_subd, postal_code, locality = database_attom.fetchAddressForVectors()

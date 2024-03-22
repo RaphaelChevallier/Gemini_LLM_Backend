@@ -268,7 +268,6 @@ def fetchAddressForVectors():
         line_two_results = cur.fetchall()
         for row in line_two_results:
             line_two.append(row)
-        return one_line, line_two, line_one, county, country_subd, postal_code, locality
         # combine = one_line + line_two + county + locality + country_subd + postal_code + line_one
     except Exception as e:
         print("Error:", e)
@@ -278,6 +277,7 @@ def fetchAddressForVectors():
             cur.close()
         if conn:
             conn.close()
+        return one_line, county, country_subd, postal_code, locality
 
 def getUpdatedMessagesChat(user_id):
     conn = psycopg2.connect(host=os.getenv('USER_DB_HOST'), database=os.getenv('USER_DATABASE'), user=os.getenv('USER_DB_USER'), password=os.getenv('USER_DB_PASSWORD'), port=os.getenv('USER_DB_PORT'))
