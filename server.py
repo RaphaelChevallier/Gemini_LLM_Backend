@@ -1,63 +1,36 @@
 import asyncio
-import os
-from string import ascii_uppercase
 
 from dotenv import load_dotenv
-from flask import Flask, redirect, render_template, request, session, url_for, jsonify
+from flask import (Flask, jsonify, redirect, render_template, request, session,
+                   url_for)
 from flask_cors import CORS
-from flask_socketio import (Namespace, SocketIO, emit, join_room, leave_room,
-                            send)
 
 import main
-import vectorstore
 
 load_dotenv('.env')
-# class UserNamespace(Namespace):
-#     def on_connect(self):
-#         print("here we connected")
-#         self.user_id = request.sid  # Use socket ID for identification
-#         self.namespace = f"/user_{self.user_id}"  # Construct unique namespace name
-#         print(f"Client connected to namespace: {self.namespace}")
-
-#         # Initialize user data (if needed)
-#         self.user_data = {'current_chat' : llm_builds.MainAgentModel.start_chat()}
-
-#         # Retrieve pre-existing session data (optional)
-#         self.user_data.update(session.get(self.user_id, {}))  # Load from session
-
-#         # Set session data (optional)
-#         session[self.user_id] = self.user_data
-
-#     def on_data(self, data):
-#         response = main.startChat(data['userMessage'], data['userId'])
-#         print("data from the front end: ", str(data['userMessage']))
-#         print(response)
-#         self.emit('data', response)
-#         asyncio.run(vectorstore.updateChatHistoryStore(data['userId']))
-        
-#     def on_disconnect(self):
-#         print(f"Client disconnected from namespace: {self.namespace}")
-#         socketio.disconnect(self.sid)
-
-#         # Clear session data (optional)
-#         del session[self.user_id]
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SOCKET_SECRET_KEY')
-CORS(app,resources={r"/*":{"origins":"*"}})
-socketio = SocketIO(app,cors_allowed_origins="*")
+# app.config['SECRET_KEY'] = os.getenv('SOCKET_SECRET_KEY')
+# CORS(app,resources={r"/*":{"origins":"*"}})
+# socketio = SocketIO(app,cors_allowed_origins="*")
 
 # socketio.on_namespace(UserNamespace('/user_<user_id>'))
 # socketio.on_namespace('user_32124312')(UserNamespace)
 
-@app.route("/llm_server/hello")
-def hello():
-    return "<h1 style='color:blue'>Hello There!</h1>"
-
 @app.route("/llm_server/tokenCount" , methods=["POST"])
-def handleData():
+def respondTokenCount():
     userMessage = request.json['userMessage']
-    return main.countTokens(userMessage)
+    count = main.countTokens(userMessage)
+    print(count.total_tokens)
+    return {"total_tokens": count.total_tokens}
+
+@app.route("/llm_server/getLLMResponse" , methods=["POST"])
+def respondToUser():
+    userMessage = request.json['userMessage']
+    userId = request.json['userId']
+    response = main.questionLLMs(userMessage, userId)
+    print(response)
+    return {"llmResponse": response}
 
 # @socketio.on("connect")
 # def connected():
@@ -91,4 +64,5 @@ def handleData():
 
 if(__name__) == "__main__":
     # socketio.run(app, host='0.0.0.0', port=5001)
-    socketio.run(app, debug = True, port=5001)
+    # socketio.run(app, debug = True, port=5001)
+    app.run(debug=True, port=5001)
