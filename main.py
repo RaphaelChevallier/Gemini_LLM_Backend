@@ -26,17 +26,18 @@ def countTokens(input):
 
 def questionLLMs(input, user_id):
 
-    chroma_client_chat_history = chromadb.PersistentClient(path="~/Downloads/Work")
+    chroma_client_chat_history = chromadb.PersistentClient(path=os.getenv('CHROMA_CLIENT_HISTORY'))
     sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-mpnet-base-v2")
     chat_history_collection = chroma_client_chat_history.get_collection(name="chat_history", embedding_function=sentence_transformer_ef)
-    chat_history_raw_messages = database_attom.getLatestChatHistoryFromUser('f926df36-4fa0-4187-ba9e-d8746d01f601')
+    chat_history_raw_messages = database_attom.getLatestChatHistoryFromUser(user_id)
 
     chat = MainAgentModel.start_chat()
     addressChat = AddressAgentModel.start_chat()
 
-    for message in chat_history_raw_messages:
-        chat.history.append(Content(role=message['role'], parts=[Part.from_text(message['text'])]))
-        addressChat.history.append(Content(role=message['role'], parts=[Part.from_text(message['text'])]))
+    if chat_history_raw_messages:
+        for message in chat_history_raw_messages:
+            chat.history.append(Content(role=message['role'], parts=[Part.from_text(message['text'])]))
+            addressChat.history.append(Content(role=message['role'], parts=[Part.from_text(message['text'])]))
 
     relevant_history = chat_history_collection.query(
             query_texts=[input],
