@@ -47,6 +47,7 @@ def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel,
         Here is a list of past messages you had with this user that may be helpful in answering the user's input: {relevant_history['documents'][0]}. And here's the metadata of those messages respectively: {relevant_history['metadatas'][0]}. The "message_time" in the metadata is the time that message was sent and the "source" in the metadata was who sent that message.
         If you see a past message that answers or helps to answer the current question you can use it as reasoning.
 
+        Do not use # symbol to format your response!
         Use bulletpoints and headings and other formatting to format your answer and avoid unnecessary jargon and text!
 
         ---The user input question to answer is: {newInput}---
@@ -68,6 +69,7 @@ def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel,
 
         The first thing in your answer if you derived an address from the user input is to show what address you derived which are: {addressesFound}
 
+        Do not use # to format your response!
         Use bulletpoints and headings and other formatting to format your answer and avoid unnecessary jargon!
 
         ---The user input question to answer is: {newInput}---
@@ -92,11 +94,12 @@ def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel,
         Suggest to the user good and sound investing strategies and cautions about the property. If an int value makes sense to return as a dollar amount, convert that int to US dollars representation.
 
         Summarize your answer and reasonings on the data you get as part of your answer as well! Never show the SQL query though but explain you got it from your own datasources if the answer comes from the results! If your answer does not come from sql query results then divulge your sources.
-        You can combine outside sources with the sql query and results as well!
+        You can combine outside sources with the sql query and results as well but prioritze the database sql results!
 
         The first thing in your answer if you derived an address from the user input is to show what address you derived which are: {addressesFound}
         If you determine that there is no address present within the input just answer the question as best you can.
 
+        Do not use # to format your response!
         Use bulletpoints and headings and other formatting to format your answer and avoid unnecessary jargon!
 
         ---The user input question to answer is: {newInput}---
