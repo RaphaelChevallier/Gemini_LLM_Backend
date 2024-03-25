@@ -16,7 +16,7 @@ load_dotenv('.env')
 
 def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel, relevant_history, PostgresAgentModel: GenerativeModel, addressChat: ChatSession, relevant_strategy) -> str:
   # Generation config
-    config = {"max_output_tokens": 1048, "temperature": 0, "top_p": 1, "top_k": 32}
+    config = {"max_output_tokens": 1500, "temperature": 0, "top_p": 1, "top_k": 32}
 
     # Safety config
     safety_config = {
@@ -44,7 +44,7 @@ def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel,
         If you see a past message that answers or helps to answer the current question you can use it as reasoning.
 
         Here is a list of documents that may relate and answer the user's input: {relevant_strategy['documents'][0]}. These are the respective metadata sources of each exerpt:{relevant_strategy['metadatas'][0]}. Use it at your disgression to inform your insights and reasonings if you find any of it useful to help answer the user.
-        Use your some of your own reasoning on the data you have.
+        Use your some of your own reasoning on the data you have. Think in terms of both the buyer's perspective and the seller's perspective unless asked specifically otherwise.
 
         Do not use # symbol to format your response!
         Use bulletpoints and headings and other formatting to format your answer and avoid unnecessary jargon and text!
@@ -65,7 +65,7 @@ def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel,
         If you see a past message that answers or helps to answer the current question you can use it as reasoning.
 
         Here is a list of documents that may relate and answer the user's input: {relevant_strategy['documents'][0]}. These are the respective metadata sources of each exerpt:{relevant_strategy['metadatas'][0]}. Use it at your disgression to inform your insights and reasonings if you find any of it useful to help answer the user.
-        You may use a little outside knowledge as well if helpful.
+        You may use a little outside knowledge as well if helpful. Think in terms of both the buyer's perspective and the seller's perspective unless asked specifically otherwise.
         Suggest to the user good investing strategies as well as your insights and cautions about the property and the data and information you have. Use your some of your own reasoning on the data you have.
 
         The first thing in your answer if you derived an address from the user input is to show what address you derived which are: {addressesFound}
@@ -90,7 +90,7 @@ def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel,
         If you see a past message that answers or helps to answer the current question you can use it as reasoning.
 
         Here is a list of documents that may relate and answer the user's input: {relevant_strategy['documents'][0]}. These are the respective metadata sources of each excerpt:{relevant_strategy['metadatas'][0]}. Use it at your disgression to inform your insights and reasonings if you find any of it useful to help answer the user.
-        You may use a little outside knowledge you already know as well if helpful.
+        You may use a little outside knowledge you already know as well if helpful. Think in terms of both the buyer's perspective and the seller's perspective unless asked specifically otherwise.
         Suggest to the user good investing strategies on the property as well as your insights and cautions about the property and the data and information you have. Use some of your own reasoning on the data you have and extrapolate from it. You may give your own judgement too but always back up with a disclaimer to do their own research if you do.
         
         If an int value makes sense to return as a dollar amount, convert that int to US dollars representation.
@@ -228,6 +228,7 @@ def queryGenerator(input: str, mainAgent: GenerativeModel, table_schema, relevan
             If using an alias for result columns use a descriptive name for that column.
 
             Write an initial draft of the query. Then double check the postgresql query for common mistakes before returning the answer.
+            It is better to grab more data using the specified existing columns with the sql command to better answer the user's query and provide more context as well.
 
             If the question does not seem related to the database, just return "I don't know" as the answer.
 
