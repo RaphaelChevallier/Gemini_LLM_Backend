@@ -251,6 +251,8 @@ def addressDictSemanticRetreival(input, address_find):
             newInput =  newInput.replace(addressComponent[0], "@", 1)
             newAddressFind.append([brandNewAddress, 'address'])
         print(newInput)
+        newAddressFind.reverse()
+
 
         for addressObject in newAddressFind:
             print(addressObject)
