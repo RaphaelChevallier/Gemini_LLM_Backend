@@ -228,12 +228,19 @@ def addressDictSemanticRetreival(input, address_find):
                 newAddressFind.append([addressComponent[0], addressComponent[1]])
                 newInput =  newInput.replace(addressComponent[0], "@", 1)
             elif addressComponent[1] not in currentAddressComponents and addressComponent[1] == 'base_address':
-                #if not base address and base_address not in components then add current newAddress and reset to add and reset to new one again
+                #if base address and base_address not in components then add current newAddress and reset to add and reset to new one again
                 currentAddressComponents[addressComponent[1]] = addressComponent[0]
                 newInput =  newInput.replace(addressComponent[0], "@", 1)
             elif addressComponent[1] not in currentAddressComponents and 'base_address' in currentAddressComponents:
                 currentAddressComponents[addressComponent[1]] = addressComponent[0]
-                newInput =  newInput.replace(addressComponent[0], "", 1)
+                last_a_index = newInput.rfind('@')
+                first_component_index = newInput.find(addressComponent[0]) + 1
+                if last_a_index == len(newInput) - 1:
+                    last_a_index = len(newInput)
+                substring = newInput[:last_a_index]
+                replaced_substring = substring.replace(newInput[last_a_index:first_component_index], '@')
+                newInput = replaced_substring + newInput[first_component_index:]
+                # newInput =  newInput.replace(addressComponent[0], "", 1)
                 #add and go to next
         if currentAddressComponents:
             brandNewAddress = ""
