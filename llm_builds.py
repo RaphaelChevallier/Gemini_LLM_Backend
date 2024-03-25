@@ -228,7 +228,7 @@ def queryGenerator(input: str, mainAgent: GenerativeModel, table_schema, relevan
             If using an alias for result columns use a descriptive name for that column.
 
             Write an initial draft of the query. Then double check the postgresql query for common mistakes before returning the answer.
-            It is better to grab more data using the specified existing columns with the sql command to better answer the user's query and provide more context as well.
+            It is better to grab more data columns using the specified existing columns with the sql command to better answer the user's query and provide more context as well.
 
             If the question does not seem related to the database, just return "I don't know" as the answer.
 
