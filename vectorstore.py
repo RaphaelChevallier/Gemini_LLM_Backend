@@ -60,7 +60,6 @@ def createStrategyStore():
             print("Starting: " + filename)
             # Convert PDF to text
             text = pdf_to_text(os.path.join('./public', filename))
-            print("done text")
             # Split text into chunks
             chunks = text_splitter.split_text(text)
             # Convert chunks to vector representations and store in Chroma DB
