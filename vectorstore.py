@@ -237,7 +237,7 @@ def addressDictSemanticRetreival(input, address_find):
                 if last_a_index != -1:  # Check if "@" exists
                     endIndex = newInput.rfind(addressComponent[0])
                     if endIndex != -1:
-                        newInput = newInput[:last_a_index + 1] + newInput[endIndex + 1:]
+                        newInput = newInput[:last_a_index + 1] + newInput[endIndex + len(addressComponent[0]):]
                     else:
                         newInput =  newInput.replace(addressComponent[0], "", 1)                    
                 print("new Inputted")
