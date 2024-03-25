@@ -235,6 +235,8 @@ def addressDictSemanticRetreival(input, address_find):
                 currentAddressComponents[addressComponent[1]] = addressComponent[0]
                 last_a_index = newInput.rfind('@')
                 substringToReplace = newInput[last_a_index:last_a_index + len(addressComponent[0]) + 1]
+                print("substringToReplace")
+                print(substringToReplace)
                 newInput =  newInput.replace(substringToReplace, "", 1)
                 #add and go to next
         if currentAddressComponents:
