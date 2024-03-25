@@ -234,13 +234,14 @@ def addressDictSemanticRetreival(input, address_find):
             elif addressComponent[1] not in currentAddressComponents and 'base_address' in currentAddressComponents:
                 currentAddressComponents[addressComponent[1]] = addressComponent[0]
                 last_a_index = newInput.rfind('@')
-                print("length of substring")
-                print(addressComponent[0])
-                print(len(addressComponent[0]) + 1)
-                substringToReplace = newInput[last_a_index:last_a_index + len(addressComponent[0]) + 1]
-                print("substringToReplace")
-                print(substringToReplace)
-                newInput =  newInput.replace(substringToReplace, "@", 1)
+                if last_a_index != -1:  # Check if "@" exists
+                    endIndex = newInput.find(addressComponent[0], last_a_index + 1)
+                    if endIndex != -1:
+                        newInput[:last_a_index + 1] + newInput[endIndex + len(addressComponent[0]):]
+                    else:
+                        newInput =  newInput.replace(addressComponent[0], "", 1)                    
+                print("new Inputted")
+                print(newInput)
                 #add and go to next
         if currentAddressComponents:
             brandNewAddress = ""
