@@ -26,9 +26,13 @@ def countTokens(input):
 
 def questionLLMs(input, user_id):
 
+    
     chroma_client_chat_history = chromadb.PersistentClient(path=os.getenv('CHROMA_CLIENT_HISTORY'))
     sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-mpnet-base-v2")
+    chroma_client_real_estate_strategy = chromadb.PersistentClient(path=os.getenv('CHROMA_STRATEGIES'))
     chat_history_collection = chroma_client_chat_history.get_collection(name="chat_history", embedding_function=sentence_transformer_ef)
+    chroma_strategy_collection = chroma_client_real_estate_strategy.get_collection(name="strategy", embedding_function=sentence_transformer_ef)
+    
     chat_history_raw_messages = database_attom.getLatestChatHistoryFromUser(user_id)
 
     chat = MainAgentModel.start_chat()
@@ -39,10 +43,20 @@ def questionLLMs(input, user_id):
             chat.history.append(Content(role=message['role'], parts=[Part.from_text(message['text'])]))
             addressChat.history.append(Content(role=message['role'], parts=[Part.from_text(message['text'])]))
 
+    relevant_strategy = chroma_strategy_collection.query(
+            query_texts=[input],
+            n_results=5
+        )
+
     relevant_history = chat_history_collection.query(
             query_texts=[input],
             where={"conversation_user": {"$eq": user_id}},
             n_results=3
         )
-    response = llm_builds.get_chat_response(chat, input, MainAgentModel, relevant_history, PostgresAgentModel, addressChat)
-    return response
+    
+    try:
+        response = llm_builds.get_chat_response(chat, input, MainAgentModel, relevant_history, PostgresAgentModel, addressChat, relevant_strategy)
+        return response
+    except:
+        return "There was a problem with the AI. Please try again or contact us."
+

@@ -14,20 +14,16 @@ import vectorstore
 
 load_dotenv('.env')
 
-def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel, relevant_history, PostgresAgentModel: GenerativeModel, addressChat: ChatSession) -> str:
+def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel, relevant_history, PostgresAgentModel: GenerativeModel, addressChat: ChatSession, relevant_strategy) -> str:
   # Generation config
     config = {"max_output_tokens": 1048, "temperature": 0, "top_p": 1, "top_k": 32}
 
     # Safety config
     safety_config = {
         generative_models.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: generative_models.HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        generative_models.HarmCategory.HARM_CATEGORY_HARASSMENT: generative_models.HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+        generative_models.HarmCategory.HARM_CATEGORY_HARASSMENT: generative_models.HarmBlockThreshold.BLOCK_ONLY_HIGH,
     }
     table_schema = database_attom.getTableSchema()
-
-    # dbNeededResult = dbNeeded(input, mainAgent, table_schema, relevant_history)
-
-    # if dbNeededResult == "True":
 
     db_results, newInput, listOfNeighbors, addressesFound = queryGenerator(input, mainAgent, table_schema, relevant_history, PostgresAgentModel, addressChat)
 
@@ -47,6 +43,9 @@ def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel,
         Here is a list of past messages you had with this user that may be helpful in answering the user's input: {relevant_history['documents'][0]}. And here's the metadata of those messages respectively: {relevant_history['metadatas'][0]}. The "message_time" in the metadata is the time that message was sent and the "source" in the metadata was who sent that message.
         If you see a past message that answers or helps to answer the current question you can use it as reasoning.
 
+        Here is a list of documents that may relate and answer the user's input: {relevant_strategy['documents'][0]}. These are the respective metadata sources of each exerpt:{relevant_strategy['metadatas'][0]}. Use it at your disgression to inform your insights and reasonings if you find any of it useful to help answer the user.
+        Use your some of your own reasoning on the data you have.
+
         Do not use # symbol to format your response!
         Use bulletpoints and headings and other formatting to format your answer and avoid unnecessary jargon and text!
 
@@ -65,7 +64,9 @@ def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel,
         Here is a list of past messages you had with this user that may be helpful in answering the user's input: {relevant_history['documents'][0]}. And here's the metadata of those messages respectively: {relevant_history['metadatas'][0]}. The "message_time" in the metadata is the time that message was sent and the "source" in the metadata was who sent that message.
         If you see a past message that answers or helps to answer the current question you can use it as reasoning.
 
+        Here is a list of documents that may relate and answer the user's input: {relevant_strategy['documents'][0]}. These are the respective metadata sources of each exerpt:{relevant_strategy['metadatas'][0]}. Use it at your disgression to inform your insights and reasonings if you find any of it useful to help answer the user.
         You may use a little outside knowledge as well if helpful.
+        Suggest to the user good investing strategies as well as your insights and cautions about the property and the data and information you have. Use your some of your own reasoning on the data you have.
 
         The first thing in your answer if you derived an address from the user input is to show what address you derived which are: {addressesFound}
 
@@ -88,15 +89,17 @@ def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel,
         Here is a list of past messages you had with this user that may be helpful in answering the user's input: {relevant_history['documents'][0]}. And here's the metadata of those messages respectively: {relevant_history['metadatas'][0]}. The "message_time" in the metadata is the time that message was sent and the "source" in the metadata was who sent that message.
         If you see a past message that answers or helps to answer the current question you can use it as reasoning.
 
-        Here is also a list of neighbors that you can suggest to check out. Dont always suggest this though only when appropriate: {listOfNeighbors}.
-
+        Here is a list of documents that may relate and answer the user's input: {relevant_strategy['documents'][0]}. These are the respective metadata sources of each exerpt:{relevant_strategy['metadatas'][0]}. Use it at your disgression to inform your insights and reasonings if you find any of it useful to help answer the user.
         You may use a little outside knowledge as well if helpful.
-        Suggest to the user good and sound investing strategies and cautions about the property. If an int value makes sense to return as a dollar amount, convert that int to US dollars representation.
+        Suggest to the user good investing strategies on the property as well as your insights and cautions about the property and the data and information you have. Use your some of your own reasoning on the data you have. You may give your own judgement too but always back up with a disclaimer to do their own research if you do.
+        
+        If an int value makes sense to return as a dollar amount, convert that int to US dollars representation.
 
-        Summarize your answer and reasonings on the data you get as part of your answer as well! Never show the SQL query though but explain you got it from your own datasources if the answer comes from the results! If your answer does not come from sql query results then divulge your sources.
+        Never show the SQL query though but explain you got it from your own datasources if the answer comes from the results! If your answer does not come from sql query results then divulge your sources.
         You can combine outside sources with the sql query and results as well but prioritze the database sql results!
 
         The first thing in your answer if you derived an address from the user input is to show what address you derived which are: {addressesFound}
+        If you derived an address then here is also a list of neighbors that you can suggest to check out. Dont always suggest this though only when appropriate: {listOfNeighbors}.
         If you determine that there is no address present within the input just answer the question as best you can.
 
         Do not use # to format your response!
@@ -106,12 +109,15 @@ def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel,
         """
 
     text_response = []
-    responses = chat.send_message(prompt, stream=True, generation_config=config, safety_settings=safety_config)
-    for chunk in responses:
-        text_response.append(chunk.text)
-        print(text_response)
-    return "".join(text_response)
-
+    try:
+        responses = chat.send_message(prompt, stream=True, generation_config=config, safety_settings=safety_config)
+        for chunk in responses:
+            text_response.append(chunk.text)
+            print(text_response)
+        return "".join(text_response)
+    except:
+        print("error")
+        return "There was a problem with the AI. Please try again or contact us."
 
 def addressFetch(input: str, mainAgent: GenerativeModel, relevant_history, addressChat: ChatSession):
     parameters = {
@@ -178,6 +184,9 @@ def queryGenerator(input: str, mainAgent: GenerativeModel, table_schema, relevan
         return results, newInput, coordinates, addressesFound
     if addressDictSemanticRetreival == "I think there is a valid address within your question but can't exactly pinpoint it. Could you specify the address more please?":
         results = "I think there is a valid address within your question but can't exactly pinpoint it. Could you specify the address more please?"
+        return results, newInput, coordinates, addressesFound
+    if "No addresses found in a valid state." in addressDictSemanticRetreival:
+        results = "I detected an address within your query but couldn't find one that is currently in an available state."
         return results, newInput, coordinates, addressesFound
     prefix = f"""
             You are an agent designed to interact with a postgres SQL database.
@@ -255,48 +264,6 @@ def queryGenerator(input: str, mainAgent: GenerativeModel, table_schema, relevan
     except (ValueError, Exception) as e:
       print("Error from query generator:", e)  # Handle errors appropriately
       return "No Address Found to Query With"
-    
-def dbNeeded(input: str, mainAgent: GenerativeModel, table_schema, relevant_history):
-    config = {"max_output_tokens": 300, "temperature": 0, "top_p": 1, "top_k": 32}
-
-    # Safety config
-    safety_config = {
-        generative_models.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: generative_models.HarmBlockThreshold.BLOCK_NONE,
-        generative_models.HarmCategory.HARM_CATEGORY_HARASSMENT: generative_models.HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
-    }
-
-    # Generate content
-    responses = mainAgent.generate_content(
-        [f"""
-        You are an agent designed to read postgres database schemas.
-        Given an input question as well as the past conversations that might relate, decide whether querying the real estate database for data is necessary or not to answer the question.
-         
-        Here is a list of past messages, besides your own context, that you had with this user that may be helpful in answering the user's input: {relevant_history['documents'][0]}. And here's the metadata of those messages respectively: {relevant_history['metadatas'][0]}. The "message_time" in the metadata is the time that message was sent and the "source" in the metadata was who sent that message.
-        If you see a past message that answers or helps to answer the current question you can use it as reasoning.
-
-        Review the schema here: {table_schema}, and know that all tables are connected via the "attom_id" identifier. 
-        
-        Understand that "table_comment" is not a column in the table but just a comment of what that table is for. Use the "table_comment" to tell you what the table data is used for!
-         
-        Do Not Make Up Tables! All table names are keys within the schema provided!
-
-        Understand that "amount" holds the actual avm, estimates, or arv values!
-
-        Understand that "location" table does not hold address information. It is purely for coordinate locations and geolocations. The "location" table is where you can find attom_id based on coordinate points.
-        Always use "address" table to match anything related to address info such as zip code, counties, cities(locality), street addresses, etc.
-
-        Understand that "column_comment" is not a column in the table but just a simple comment of what that column is for.
-
-        If the question does not seem related to the database, just return "False" as the answer. Else answer "True".
-
-        ---The user input question to answer is: {input}---
-        """],
-            generation_config=config,
-            safety_settings=safety_config,
-        )
-
-    db_necessary = responses.text
-    return db_necessary
 
  # Specify a function declaration and parameters for an API request
 get_confirmed_available_addresses = FunctionDeclaration(

@@ -2,17 +2,29 @@ import os
 from datetime import datetime
 
 import chromadb
+import PyPDF2
 import requests
 from chromadb.utils import embedding_functions
 from google.auth.transport.requests import Request
 from google.oauth2.service_account import Credentials
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from vertexai.generative_models import Content, GenerativeModel, Part
 
 import database_attom
 
 chroma_client = chromadb.PersistentClient(path=os.getenv('CHROMA_MAIN'))
 chroma_client_chat_history = chromadb.PersistentClient(path=os.getenv('CHROMA_CLIENT_HISTORY'))
+chroma_client_real_estate_strategy = chromadb.PersistentClient(path=os.getenv('CHROMA_STRATEGIES'))
 sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-mpnet-base-v2")
+
+def pdf_to_text(file_path):
+    pdf_file = open(file_path, 'rb')
+    pdf_reader = PyPDF2.PdfReader(pdf_file)
+    text = ""
+    for page_num in range( len(pdf_reader.pages)):
+        text += pdf_reader.pages[page_num].extract_text()
+    pdf_file.close()
+    return text
 
 async def updateChatHistoryStore(user_id):
     chat_history_collection = chroma_client_chat_history.get_collection(name="chat_history", embedding_function=sentence_transformer_ef)
@@ -32,6 +44,47 @@ async def updateChatHistoryStore(user_id):
         metadatas={'source': 'user', 'message_time': formatted_time, 'conversation_user': user_id},
         ids=row[0]
     )
+
+def createStrategyStore():
+    chroma_client_real_estate_strategy.reset()
+    try:
+        chroma_strategy_collection = chroma_client_real_estate_strategy.get_collection(name="strategy", embedding_function=sentence_transformer_ef)
+        chroma_client_real_estate_strategy.delete_collection(name="strategy", embedding_function=sentence_transformer_ef)
+    except:
+        print("no strategy store exists yet")
+    chroma_strategy_collection = chroma_client_real_estate_strategy.create_collection(name="strategy", embedding_function=sentence_transformer_ef)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=512, chunk_overlap=150)
+
+    for filename in os.listdir('./public'):
+        if filename.endswith('.pdf'):
+            print("Starting: " + filename)
+            # Convert PDF to text
+            text = pdf_to_text(os.path.join('./public', filename))
+            print("done text")
+            # Split text into chunks
+            chunks = text_splitter.split_text(text)
+            # Convert chunks to vector representations and store in Chroma DB
+            documents_list = []
+            ids_list = []
+            metadatas_list = []
+            for i, chunk in enumerate(chunks):
+
+                documents_list.append(chunk)
+                metadatas_list.append({"source": filename})
+                ids_list.append(f"{filename}_{i}")
+            
+            chroma_strategy_collection.add(
+                documents=documents_list,
+                metadatas=metadatas_list,
+                ids=ids_list
+            )
+            print("Ending: " + filename)
+    test = chroma_strategy_collection.query(
+            query_texts=['What is seller financing?'],
+            n_results=10
+        )
+    print(test)
+    print("Finished new strategy embeddings")
 
 def createChatHistoryStore():
     chroma_client_chat_history.reset()
@@ -61,7 +114,7 @@ def createChatHistoryStore():
     #         query_texts=['Hello! How can I help you today?'],
     #         n_results=1
     #     )
-    # print(results)
+    print(chat_history_collection)
     
 def createVectorStores():
     one_line, county, country_subd, postal_code, locality = database_attom.fetchAddressForVectors()
@@ -215,72 +268,79 @@ def addressDictSemanticRetreival(input, address_find):
             try:
                 response = requests.request("GET", url, headers=headers, data=payload)
                 if response.json()['addresses']:
-                    if addressType == 'address':
-                        improvedAddress = response.json()['addresses'][0]['formattedAddress'][:-3]
-                        foundAddresses.append(improvedAddress.upper())
-                        mostAccurateDB = one_line_collection.query(
-                            query_texts=[improvedAddress.upper()],
-                            n_results=1
-                        )
-                        if mostAccurateDB['distances'][0][0] < .03:
-                            improvedAddress = mostAccurateDB['documents'][0][0]
-                        if '@' in newInput:
-                            newInput = newInput.replace('@', improvedAddress.upper(), 1)
-                        else:
-                            newInput = newInput.replace(address, improvedAddress.upper(), 1)
+                    if response.json()['addresses'][0]['stateCode'] == "WA":
+                        if addressType == 'address':
+                            improvedAddress = response.json()['addresses'][0]['formattedAddress'][:-3]
+                            foundAddresses.append(improvedAddress.upper())
+                            mostAccurateDB = one_line_collection.query(
+                                query_texts=[improvedAddress.upper()],
+                                n_results=1
+                            )
+                            if mostAccurateDB['distances'][0][0] < .03:
+                                improvedAddress = mostAccurateDB['documents'][0][0]
+                            if '@' in newInput:
+                                newInput = newInput.replace('@', improvedAddress.upper(), 1)
+                            else:
+                                newInput = newInput.replace(address, improvedAddress.upper(), 1)
 
-                    elif addressType == 'locality':
-                        improvedLocality = response.json()['addresses'][0]['city']
-                        mostAccurateDB = locality_collection.query(
-                            query_texts=[improvedLocality],
-                            n_results=1
-                        )
-                        if mostAccurateDB['distances'][0][0] < .03:
-                            improvedLocality = mostAccurateDB['documents'][0][0]
-                        if '@' in newInput:
-                            newInput = newInput.replace('@', improvedLocality.upper(), 1)
-                        else:
-                            newInput = newInput.replace(address, improvedLocality.upper(), 1)
+                        elif addressType == 'locality':
+                            improvedLocality = response.json()['addresses'][0]['city']
+                            mostAccurateDB = locality_collection.query(
+                                query_texts=[improvedLocality],
+                                n_results=1
+                            )
+                            if mostAccurateDB['distances'][0][0] < .03:
+                                improvedLocality = mostAccurateDB['documents'][0][0]
+                            if '@' in newInput:
+                                newInput = newInput.replace('@', improvedLocality.upper(), 1)
+                            else:
+                                newInput = newInput.replace(address, improvedLocality.upper(), 1)
 
-                    elif addressType == 'county':
-                        improvedCounty = response.json()['addresses'][0]['county'][:-7]
-                        mostAccurateDB = county_collection.query(
-                            query_texts=[improvedCounty],
-                            n_results=1
-                        )
-                        if mostAccurateDB['distances'][0][0] < .03:
-                            improvedCounty = mostAccurateDB['documents'][0][0]
-                        if '@' in newInput:
-                            newInput = newInput.replace('@', improvedCounty.upper(), 1)
-                        else:
-                            newInput = newInput.replace(address, improvedCounty.upper(), 1)
+                        elif addressType == 'county':
+                            improvedCounty = response.json()['addresses'][0]['county'][:-7]
+                            mostAccurateDB = county_collection.query(
+                                query_texts=[improvedCounty],
+                                n_results=1
+                            )
+                            if mostAccurateDB['distances'][0][0] < .03:
+                                improvedCounty = mostAccurateDB['documents'][0][0]
+                            if '@' in newInput:
+                                newInput = newInput.replace('@', improvedCounty.upper(), 1)
+                            else:
+                                newInput = newInput.replace(address, improvedCounty.upper(), 1)
 
-                    elif addressType == 'postalCode':
-                        improvedPostalCode = response.json()['addresses'][0]['postalCode']
-                        mostAccurateDB = postal_code_collection.query(
-                            query_texts=[improvedPostalCode],
-                            n_results=1
-                        )
-                        if mostAccurateDB['distances'][0][0] < .03:
-                            improvedPostalCode = mostAccurateDB['documents'][0][0]
-                        if '@' in newInput:
-                            newInput = newInput.replace('@', improvedPostalCode.upper(), 1)
-                        else:
-                            newInput = newInput.replace(address, improvedPostalCode.upper(), 1)
-                    
-                    elif addressType == 'state':
-                        improvedState = response.json()['addresses'][0]['stateCode']
-                        mostAccurateDB = country_subd_collection.query(
-                            query_texts=[improvedState],
-                            n_results=1
-                        )
-                        if mostAccurateDB['distances'][0][0] < .03:
-                            improvedState = mostAccurateDB['documents'][0][0]
-                        if '@' in newInput:
-                            newInput = newInput.replace('@', improvedState.upper(), 1)
-                        else:
-                            newInput = newInput.replace(address, improvedState.upper(), 1)
-                    coordinatesFound.append(response.json()['addresses'][0]['geometry']['coordinates'])
+                        elif addressType == 'postalCode':
+                            improvedPostalCode = response.json()['addresses'][0]['postalCode']
+                            mostAccurateDB = postal_code_collection.query(
+                                query_texts=[improvedPostalCode],
+                                n_results=1
+                            )
+                            if mostAccurateDB['distances'][0][0] < .03:
+                                improvedPostalCode = mostAccurateDB['documents'][0][0]
+                            if '@' in newInput:
+                                newInput = newInput.replace('@', improvedPostalCode.upper(), 1)
+                            else:
+                                newInput = newInput.replace(address, improvedPostalCode.upper(), 1)
+                        
+                        elif addressType == 'state':
+                            improvedState = response.json()['addresses'][0]['stateCode']
+                            mostAccurateDB = country_subd_collection.query(
+                                query_texts=[improvedState],
+                                n_results=1
+                            )
+                            if mostAccurateDB['distances'][0][0] < .03:
+                                improvedState = mostAccurateDB['documents'][0][0]
+                            if '@' in newInput:
+                                newInput = newInput.replace('@', improvedState.upper(), 1)
+                            else:
+                                newInput = newInput.replace(address, improvedState.upper(), 1)
+                        coordinatesFound.append(response.json()['addresses'][0]['geometry']['coordinates'])
+                    else:
+                        newInput = newInput.replace(address, address.upper(), 1)
+                        foundAddresses.append(address.upper())
+                        foundValidAddress = False
+                        coordinatesFound.append(None)
+                        return "No addresses found in a valid state. Only able to look at Washington addresses.", newInput, foundValidAddress, coordinatesFound, foundAddresses
                 else:
                     newInput = newInput.replace(address, address.upper(), 1)
                     foundAddresses.append(address.upper())
@@ -302,3 +362,4 @@ def addressDictSemanticRetreival(input, address_find):
 if __name__ == "__main__":
     createChatHistoryStore()
     createVectorStores()
+    createStrategyStore()
