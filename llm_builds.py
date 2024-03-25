@@ -89,9 +89,9 @@ def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel,
         Here is a list of past messages you had with this user that may be helpful in answering the user's input: {relevant_history['documents'][0]}. And here's the metadata of those messages respectively: {relevant_history['metadatas'][0]}. The "message_time" in the metadata is the time that message was sent and the "source" in the metadata was who sent that message.
         If you see a past message that answers or helps to answer the current question you can use it as reasoning.
 
-        Here is a list of documents that may relate and answer the user's input: {relevant_strategy['documents'][0]}. These are the respective metadata sources of each exerpt:{relevant_strategy['metadatas'][0]}. Use it at your disgression to inform your insights and reasonings if you find any of it useful to help answer the user.
-        You may use a little outside knowledge as well if helpful.
-        Suggest to the user good investing strategies on the property as well as your insights and cautions about the property and the data and information you have. Use your some of your own reasoning on the data you have. You may give your own judgement too but always back up with a disclaimer to do their own research if you do.
+        Here is a list of documents that may relate and answer the user's input: {relevant_strategy['documents'][0]}. These are the respective metadata sources of each excerpt:{relevant_strategy['metadatas'][0]}. Use it at your disgression to inform your insights and reasonings if you find any of it useful to help answer the user.
+        You may use a little outside knowledge you already know as well if helpful.
+        Suggest to the user good investing strategies on the property as well as your insights and cautions about the property and the data and information you have. Use some of your own reasoning on the data you have and extrapolate from it. You may give your own judgement too but always back up with a disclaimer to do their own research if you do.
         
         If an int value makes sense to return as a dollar amount, convert that int to US dollars representation.
 

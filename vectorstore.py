@@ -114,7 +114,6 @@ def createChatHistoryStore():
     #         query_texts=['Hello! How can I help you today?'],
     #         n_results=1
     #     )
-    print(chat_history_collection)
     
 def createVectorStores():
     one_line, county, country_subd, postal_code, locality = database_attom.fetchAddressForVectors()
