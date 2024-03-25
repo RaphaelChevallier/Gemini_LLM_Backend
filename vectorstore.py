@@ -240,8 +240,6 @@ def addressDictSemanticRetreival(input, address_find):
                         newInput = newInput[:last_a_index + 1] + newInput[endIndex + len(addressComponent[0]):]
                     else:
                         newInput =  newInput.replace(addressComponent[0], "", 1)                    
-                print("new Inputted")
-                print(newInput)
                 #add and go to next
         if currentAddressComponents:
             brandNewAddress = ""
@@ -282,7 +280,7 @@ def addressDictSemanticRetreival(input, address_find):
                                 query_texts=[improvedAddress.upper()],
                                 n_results=1
                             )
-                            if mostAccurateDB['distances'][0][0] < .03:
+                            if mostAccurateDB['distances'][0] and mostAccurateDB['distances'][0][0] < .03:
                                 improvedAddress = mostAccurateDB['documents'][0][0]
                             if '@' in newInput:
                                 newInput = newInput.replace('@', improvedAddress.upper(), 1)
@@ -295,7 +293,7 @@ def addressDictSemanticRetreival(input, address_find):
                                 query_texts=[improvedLocality],
                                 n_results=1
                             )
-                            if mostAccurateDB['distances'][0][0] < .03:
+                            if mostAccurateDB['distances'][0] and mostAccurateDB['distances'][0][0] < .03:
                                 improvedLocality = mostAccurateDB['documents'][0][0]
                             if '@' in newInput:
                                 newInput = newInput.replace('@', improvedLocality.upper(), 1)
@@ -308,7 +306,7 @@ def addressDictSemanticRetreival(input, address_find):
                                 query_texts=[improvedCounty],
                                 n_results=1
                             )
-                            if mostAccurateDB['distances'][0][0] < .03:
+                            if mostAccurateDB['distances'][0] and mostAccurateDB['distances'][0][0] < .03:
                                 improvedCounty = mostAccurateDB['documents'][0][0]
                             if '@' in newInput:
                                 newInput = newInput.replace('@', improvedCounty.upper(), 1)
@@ -321,7 +319,7 @@ def addressDictSemanticRetreival(input, address_find):
                                 query_texts=[improvedPostalCode],
                                 n_results=1
                             )
-                            if mostAccurateDB['distances'][0][0] < .03:
+                            if mostAccurateDB['distances'][0] and mostAccurateDB['distances'][0][0] < .03:
                                 improvedPostalCode = mostAccurateDB['documents'][0][0]
                             if '@' in newInput:
                                 newInput = newInput.replace('@', improvedPostalCode.upper(), 1)
@@ -334,7 +332,7 @@ def addressDictSemanticRetreival(input, address_find):
                                 query_texts=[improvedState],
                                 n_results=1
                             )
-                            if mostAccurateDB['distances'][0][0] < .03:
+                            if mostAccurateDB['distances'][0] and mostAccurateDB['distances'][0][0] < .03:
                                 improvedState = mostAccurateDB['documents'][0][0]
                             if '@' in newInput:
                                 newInput = newInput.replace('@', improvedState.upper(), 1)
