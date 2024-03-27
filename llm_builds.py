@@ -26,9 +26,8 @@ def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel,
     table_schema = database_attom.getTableSchema()
 
     db_results, newInput, listOfNeighbors, addressesFound = queryGenerator(input, mainAgent, table_schema, relevant_history, PostgresAgentModel, addressChat)
-
-    if db_results and db_results != "No Address Found to Query With" and db_results !=  "I think there is a valid address within your question but can't exactly pinpoint it. Could you specify the address more please?" and db_results != []:
-        print(db_results)
+    print(db_results)
+    if db_results and db_results != "No Address Found to Query With" and db_results !=  "I think there is a valid address within your question but can't exactly pinpoint it. Could you specify the address more please?" and db_results != [] and "I detected an address within your query but couldn't find one that is currently in an available state." not in db_results:
         for d in db_results:
             new_dict = {key: value for key, value in d.items() if value is not None}
             if len(new_dict) != 0:
@@ -39,6 +38,23 @@ def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel,
         prompt = f"""
         You are a real estate expert with vast real estate investing knowledge and strategies. You want to be helpful. Your name is EstateMate.
         No specific address was found in this user's input. Answer as best you can without being specific on values as you don't have any.
+
+        Here is a list of past messages you had with this user that may be helpful in answering the user's input: {relevant_history['documents'][0]}. And here's the metadata of those messages respectively: {relevant_history['metadatas'][0]}. The "message_time" in the metadata is the time that message was sent and the "source" in the metadata was who sent that message.
+        If you see a past message that answers or helps to answer the current question you can use it as reasoning.
+
+        Here is a list of documents that may relate and answer the user's input: {relevant_strategy['documents'][0]}. These are the respective metadata sources of each exerpt:{relevant_strategy['metadatas'][0]}. Use it at your disgression to inform your insights and reasonings if you find any of it useful to help answer the user.
+        Use your some of your own reasoning on the data you have. Think in terms of both the buyer's perspective and the seller's perspective unless asked specifically otherwise.
+
+        Do not use # symbol to format your response!
+        Use bulletpoints and headings and other formatting to format your answer and avoid unnecessary jargon and text!
+
+        ---The user input question to answer is: {newInput}---
+        """
+    elif "I detected an address within your query but couldn't find one that is currently in an available state." in db_results:
+        config = {"max_output_tokens": 500, "temperature": 0, "top_p": 1, "top_k": 32}
+        prompt = f"""
+        You are a real estate expert with vast real estate investing knowledge and strategies. You want to be helpful. Your name is EstateMate.
+        You did find an address but it just isn't part of an available State for the user. Inform them that you cannot access a property for that state. You only have access to Washington state.
 
         Here is a list of past messages you had with this user that may be helpful in answering the user's input: {relevant_history['documents'][0]}. And here's the metadata of those messages respectively: {relevant_history['metadatas'][0]}. The "message_time" in the metadata is the time that message was sent and the "source" in the metadata was who sent that message.
         If you see a past message that answers or helps to answer the current question you can use it as reasoning.
@@ -83,8 +99,7 @@ def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel,
 
         Here is the data retrieved from the database from that generated query above that relates to the user input: {db_results}. Review it carefully and infer from it to answer the query appropriately and knowledgibly.
         If the generated sql query is "I think there is a valid address within your question but can't exactly pinpoint it. Could you specify the address more please?" just ignore the database results. If the input requires database results to answer say: "I think there is a valid address within your question but can't exactly pinpoint it. Could you specify the address more please?"
-        If the database results is an empty list just ignore both the query and the database results.
-        Else these will provide the information to answer questions about specific properties and addresses that are in the user's input.
+        Else these will provide the information to answer questions about specific properties and addresses that are in the user's input. If a user asks for a list of addresses you can provide them from these database results. "one_line" is a whole address that you have available.
         
         Here is a list of past messages you had with this user that may be helpful in answering the user's input: {relevant_history['documents'][0]}. And here's the metadata of those messages respectively: {relevant_history['metadatas'][0]}. The "message_time" in the metadata is the time that message was sent and the "source" in the metadata was who sent that message.
         If you see a past message that answers or helps to answer the current question you can use it as reasoning.
@@ -100,7 +115,6 @@ def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel,
 
         The first thing in your answer if you derived an address from the user input is to show what address you derived which are: {addressesFound}
         If you derived an address then here is also a list of neighbors that you can suggest to check out. Dont always suggest this though only when appropriate: {listOfNeighbors}.
-        If you determine that there is no address present within the input just answer the question as best you can.
 
         Do not use # to format your response!
         Use bulletpoints and headings and other formatting to format your answer and avoid unnecessary jargon!
@@ -115,11 +129,12 @@ def get_chat_response(chat: ChatSession, input: str, mainAgent: GenerativeModel,
             text_response.append(chunk.text)
             print(text_response)
         return "".join(text_response)
-    except:
+    except Exception as e:
+        print(e)
         print("error")
         return "There was a problem with the AI. Please try again or contact us."
 
-def addressFetch(input: str, mainAgent: GenerativeModel, relevant_history, addressChat: ChatSession):
+def addressFetch(input: str, PostgresAgentModel: GenerativeModel, table_schema, addressChat: ChatSession):
     parameters = {
         "max_output_tokens": 1000,
         "temperature": 0,
@@ -157,18 +172,58 @@ def addressFetch(input: str, mainAgent: GenerativeModel, relevant_history, addre
         except Exception as e:
             address_find = []
 
-        # newInput = (
-        #     response.candidates[0].content.parts[0].function_call.args["newInput"]
-        # )
-        # print(response.candidates[0].content)
+        if address_find == []:
+            needDb = dbNeeded(input, PostgresAgentModel, table_schema)
+            print("needDb1")
+            print(needDb)
+            if needDb == "True":
+                return "Query Anyways", input, False, [], []
         addressDictSemanticRetreival, newInput, foundValidAddress, coordinates, addressesFound  = vectorstore.addressDictSemanticRetreival(input, address_find)
         return addressDictSemanticRetreival, newInput, foundValidAddress, coordinates, addressesFound
     else: 
         if response.text:
-            return response.text, input, False, [], []
+            needDb = dbNeeded(input, PostgresAgentModel, table_schema)
+            if needDb == "True":
+                return "Query Anyways", input, False, [], []
+            else:
+                return response.text, input, False, [], []
         else:
-            return "No Address Found to Query With", input, False, [], []
+            needDb = dbNeeded(input, PostgresAgentModel, table_schema)
+            if needDb == "True":
+                return "Query Anyways", input, False, [], []
+            else:
+                return "No Address Found to Query With", input, False, [], []
 
+def dbNeeded(newInput: str, PostgresAgentModel: GenerativeModel, table_schema):
+    config = {"max_output_tokens": 10, "temperature": 0, "top_p": 1, "top_k": 32}
+    safety_config = {
+            generative_models.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: generative_models.HarmBlockThreshold.BLOCK_NONE,
+            generative_models.HarmCategory.HARM_CATEGORY_HARASSMENT: generative_models.HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+        }
+    prompt=[f"""
+    You are an expert that knows when a question needs postgres database data to answer the question. Here is your postgres database schema:{table_schema}. Review it carefully!
+    Review the schema, and know that all tables are connected via the "attom_id" identifier. 
+            
+    Understand that "table_comment" is not a column in the table but just a comment of what that table is for. Use the "table_comment" to tell you what the table data is used for!
+    
+    Do Not Make Up Tables! All table names are keys within the schema provided!
+
+    Understand that "amount" holds the actual avm, estimates, or arv values!
+
+    Understand that "location" table does not hold address information. It is purely for coordinate locations and geolocations. The "location" table is where you can find attom_id based on coordinate points.
+    Always use "address" table to match anything related to address info such as zip code, counties, cities(locality), street addresses, etc.
+
+    Understand that "column_comment" is not a column in the table but just a simple comment of what that column is for.
+
+    You're only job is to tell me if the data in the database using that schema can still be used to answer the user input. 
+    ---The user input question to answer is: {newInput}---
+    Only ever respond with either "True" if the database can help answer the user or "False" if the question does not need the database data to answer with. No other words but "True" or "False"
+    """]
+    responses = PostgresAgentModel.generate_content(prompt,
+                generation_config=config,
+                safety_settings=safety_config,
+            )
+    return responses.text
 
 def queryGenerator(input: str, mainAgent: GenerativeModel, table_schema, relevant_history, PostgresAgentModel: GenerativeModel, addressChat: ChatSession):
     config = {"max_output_tokens": 2048, "temperature": 0, "top_p": 1, "top_k": 32}
@@ -178,7 +233,7 @@ def queryGenerator(input: str, mainAgent: GenerativeModel, table_schema, relevan
         generative_models.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: generative_models.HarmBlockThreshold.BLOCK_NONE,
         generative_models.HarmCategory.HARM_CATEGORY_HARASSMENT: generative_models.HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
     }
-    addressDictSemanticRetreival, newInput, foundValidAddress, coordinates, addressesFound  = addressFetch(input, mainAgent, relevant_history, addressChat)
+    addressDictSemanticRetreival, newInput, foundValidAddress, coordinates, addressesFound  = addressFetch(input, PostgresAgentModel, table_schema, addressChat)
     if addressDictSemanticRetreival == "No Address Found to Query With":
         results = "No Address Found to Query With"
         return results, newInput, coordinates, addressesFound
@@ -241,11 +296,6 @@ def queryGenerator(input: str, mainAgent: GenerativeModel, table_schema, relevan
         prompt = [prefix, main, suffix]
     elif foundValidAddress == False:
         main = f"""
-            Review the retrieval tool results which are {addressDictSemanticRetreival}. Each main key is a column in the address table with the semantic search results of the address within the user input. Use these values in the query to get the correct attom_id to connect all tables for the query. The distance value is a value of the
-            similarity that is available within the database. Never guess "one_line" if the distance is too high!
-
-            Understand that the "one_line" column contains the full address of a property. Always uppercase the address you are using! If you are not given the attom_id you can search attom_id through the "address" table via the "one_line" column but use the LIKE clause not the =.
-
             If the input is requesting for similar properties around or compared to an address given use the postal1, county, locality, or even the country_subd columns depending on the request but do not make up values that are not more than .5 distance confident from the address retrieval tool above. Do not use the main address but only these components to find comparables!
             """
         prompt = [prefix, main, suffix]

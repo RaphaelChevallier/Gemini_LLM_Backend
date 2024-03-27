@@ -35,8 +35,8 @@ def questionLLMs(input, user_id):
     
     chat_history_raw_messages = database_attom.getLatestChatHistoryFromUser(user_id)
 
-    chat = MainAgentModel.start_chat()
-    addressChat = AddressAgentModel.start_chat()
+    chat = MainAgentModel.start_chat(response_validation=False)
+    addressChat = AddressAgentModel.start_chat(response_validation=False)
 
     if chat_history_raw_messages:
         for message in chat_history_raw_messages:
@@ -57,6 +57,7 @@ def questionLLMs(input, user_id):
     try:
         response = llm_builds.get_chat_response(chat, input, MainAgentModel, relevant_history, PostgresAgentModel, addressChat, relevant_strategy)
         return response
-    except:
+    except Exception as e:
+        print(e)
         return "There was a problem with the AI. Please try again or contact us."
 
