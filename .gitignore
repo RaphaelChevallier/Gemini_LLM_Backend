@@ -156,7 +156,25 @@ cython_debug/
 
 ~/client_history
 ~/main_store
+.DS_Store
 
+analysis.json
+output.html
+quotesHistory_df
+barsHistoryMonth.pdf
+barsHistoryMonth_df
+quotesHistory.pdf
+barsHistoryLastYear.pdf
+barsHistoryLastYear_df
+stockBarsHistory.pdf
+tradesHistory_df
+tradesHistory.pdf
+barsHistory_df
+barsHistoryDay_df
+BarsHistory.pdf
+barsHistoryDay.pdf
+barsHistoryWeek.pdf
+barsHistoryWeek_df
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
