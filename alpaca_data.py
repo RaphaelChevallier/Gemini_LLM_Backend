@@ -11,6 +11,11 @@ from alpaca.data.requests import (CryptoBarsRequest, StockBarsRequest,
                                   StockQuotesRequest, StockSnapshotRequest,
                                   StockTradesRequest)
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
+from alpaca.trading.client import TradingClient
+from alpaca.trading.enums import AssetClass, AssetStatus, TimeInForce
+from alpaca.trading.requests import (GetAssetsRequest, GetOrdersRequest,
+                                     LimitOrderRequest, OrderSide,
+                                     QueryOrderStatus)
 from dateutil.relativedelta import relativedelta
 from dotenv import load_dotenv
 
@@ -29,6 +34,8 @@ def date_by_adding_business_days(from_date, add_days):
 
 # no keys required.
 crypto_client = CryptoHistoricalDataClient()
+
+trading_client = TradingClient(os.getenv('APCA-API-KEY-ID'),  os.getenv('APCA-API-SECRET-KEY'), paper=True)
 
 default_stocks=['MSFT',
 'AAPL',
@@ -149,10 +156,53 @@ def getCurrentSnapshots(stock_client: StockHistoricalDataClient = stock_client, 
 
     return latest_multisymbol_snapshots
 
+def createLimitOrder(symbol: str, price:float, qty:int, action: str, trading_client: TradingClient = trading_client):
+    if action == "buy":
+        limit_order_data = LimitOrderRequest(
+                        symbol=symbol,
+                        limit_price=price,
+                        qty=qty,
+                        side=OrderSide.BUY,
+                        time_in_force=TimeInForce.FOK
+                    )
+    elif action == "sell":
+        limit_order_data = LimitOrderRequest(
+                        symbol=symbol,
+                        qty=qty,
+                        limit_price=price,
+                        side=OrderSide.SELL,
+                        time_in_force=TimeInForce.FOK
+                    )
+    
+    # Limit order
+    limit_order = trading_client.submit_order(
+                    order_data=limit_order_data
+                )
+    print(limit_order)
+    return limit_order
+
+def getAccountDetails(trading_client: TradingClient = trading_client, symbols: list = default_stocks):
+    account = trading_client.get_account()
+
+    request_params = GetOrdersRequest(
+                        status=QueryOrderStatus.OPEN,
+                    )
+
+    # orders that satisfy params
+    orders = trading_client.get_orders(filter=request_params)
+
+    positions = trading_client.get_all_positions()
+    for position in positions:
+        position = position.model_dump()
+        position.pop('asset_id')
+    for order in orders:
+        order = order.model_dump()
+    account = account.model_dump()
+    return positions, orders, account['cash']
 
 def getStockTrades(stock_client: StockHistoricalDataClient = stock_client, symbols: list=default_stocks, start: datetime=default_history_trades):
     multisymbol_request_params = StockTradesRequest(symbol_or_symbols=symbols, start=start)
-
+    print(multisymbol_request_params)
     latest_multisymbol_trades = stock_client.get_stock_trades(multisymbol_request_params)
     dataframe = latest_multisymbol_trades.df
     dataframe.to_pickle("tradesHistory_df")
@@ -217,9 +267,10 @@ def getStockBarsForDay(stock_client: StockHistoricalDataClient = stock_client, s
     pdfkit.from_file('output.html', 'barsHistoryDay.pdf')
 
 if __name__ == "__main__":
-    getCurrentSnapshots()
-    # getStockTrades()
+    # getCurrentSnapshots()
+    # getStockTrades(symbols=['AAPL', 'GOOG', 'AMZN', 'TSLA'], start=datetime.now(timezone.utc).replace(hour=16, minute=7, second=0, microsecond=0))
     # getStockQuotes()
-    getStockBarsForLastWeek()
-    getStockBarsForLastYear()
-    getStockBarsForDay()
+    # getStockBarsForLastWeek()
+    # getStockBarsForLastYear()
+    # getStockBarsForDay()
+    getAccountDetails()
