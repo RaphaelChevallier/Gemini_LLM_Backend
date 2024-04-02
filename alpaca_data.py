@@ -1,9 +1,9 @@
 import os
+import tempfile
 from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 import pdfkit
-import requests
 from alpaca.data import CryptoHistoricalDataClient, StockHistoricalDataClient
 from alpaca.data.historical import (CryptoHistoricalDataClient,
                                     StockHistoricalDataClient)
@@ -14,8 +14,8 @@ from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import AssetClass, AssetStatus, TimeInForce
 from alpaca.trading.requests import (GetAssetsRequest, GetOrdersRequest,
-                                     LimitOrderRequest, OrderSide,
-                                     QueryOrderStatus)
+                                     LimitOrderRequest, MarketOrderRequest,
+                                     OrderSide, QueryOrderStatus)
 from dateutil.relativedelta import relativedelta
 from dotenv import load_dotenv
 
@@ -138,6 +138,15 @@ default_stocks=['MSFT',
 # 'T',
 # 'BLK',
 
+defaultOptions = {
+        'page-size': 'B2',
+        'margin-top': '0.0in',
+        'margin-right': '0.0in',
+        'margin-bottom': '0.0in',
+        'margin-left': '0.0in',
+        'orientation': 'portrait'
+    }
+
 default_timeframe = TimeFrame.Week
 
 default_history_bars = datetime.now(timezone.utc) - relativedelta(years=1)
@@ -154,6 +163,8 @@ def getCurrentSnapshots(stock_client: StockHistoricalDataClient = stock_client, 
 
     latest_multisymbol_snapshots = stock_client.get_stock_snapshot(multisymbol_request_params)
 
+    print(latest_multisymbol_snapshots)
+
     return latest_multisymbol_snapshots
 
 def createLimitOrder(symbol: str, price:float, qty:int, action: str, trading_client: TradingClient = trading_client):
@@ -163,15 +174,15 @@ def createLimitOrder(symbol: str, price:float, qty:int, action: str, trading_cli
                         limit_price=price,
                         qty=qty,
                         side=OrderSide.BUY,
-                        time_in_force=TimeInForce.FOK
+                        time_in_force=TimeInForce.IOC
                     )
     elif action == "sell":
-        limit_order_data = LimitOrderRequest(
+        limit_order_data = MarketOrderRequest(
                         symbol=symbol,
                         qty=qty,
-                        limit_price=price,
+                        # limit_price=price,
                         side=OrderSide.SELL,
-                        time_in_force=TimeInForce.FOK
+                        time_in_force=TimeInForce.DAY
                     )
     
     # Limit order
@@ -192,32 +203,41 @@ def getAccountDetails(trading_client: TradingClient = trading_client, symbols: l
     orders = trading_client.get_orders(filter=request_params)
 
     positions = trading_client.get_all_positions()
-    for position in positions:
+    for index, position in enumerate(positions):
         position = position.model_dump()
         position.pop('asset_id')
+        position.pop('exchange')
+        position.pop('asset_class')
+        position.pop('asset_marginable')
+        position.pop('avg_entry_swap_rate')
+        position.pop('swap_rate')
+        position.pop('usd')
+        position['unrealized_profit/loss'] = position.pop('unrealized_pl')
+        position['unrealized_profit/loss_percent'] = position.pop('unrealized_plpc')
+        position['unrealized_profit/loss_for_day'] = position.pop('unrealized_intraday_pl')
+        position['unrealized_profit/loss_for_day_percent'] = position.pop('unrealized_intraday_plpc')
+        positions[index] = position
     for order in orders:
         order = order.model_dump()
     account = account.model_dump()
     return positions, orders, account['cash']
 
 def getStockTrades(stock_client: StockHistoricalDataClient = stock_client, symbols: list=default_stocks, start: datetime=default_history_trades):
-    multisymbol_request_params = StockTradesRequest(symbol_or_symbols=symbols, start=start)
+    multisymbol_request_params = StockTradesRequest(symbol_or_symbols=symbols, start=start, feed='iex')
     print(multisymbol_request_params)
     latest_multisymbol_trades = stock_client.get_stock_trades(multisymbol_request_params)
     dataframe = latest_multisymbol_trades.df
     dataframe.to_pickle("tradesHistory_df")
-
     dataframe.to_html('output.html')
 
     pdfkit.from_file('output.html', 'tradesHistory.pdf')
 
 def getStockQuotes(stock_client: StockHistoricalDataClient = stock_client, symbols: list=default_stocks, start: datetime=default_history_quotes):
-    multisymbol_request_params = StockQuotesRequest(symbol_or_symbols=symbols, start=start)
+    multisymbol_request_params = StockQuotesRequest(symbol_or_symbols=symbols, start=start, feed='iex')
 
     latest_multisymbol_quotes = stock_client.get_stock_quotes(multisymbol_request_params)
     dataframe = latest_multisymbol_quotes.df
     dataframe.to_pickle("quotesHistory_df")
-
     dataframe.to_html('output.html')
 
     pdfkit.from_file('output.html', 'quotesHistory.pdf')
@@ -231,7 +251,7 @@ def getStockBarsForLastYear(stock_client: StockHistoricalDataClient = stock_clie
     dataframe.to_pickle("barsHistoryLastYear_df")
     dataframe.to_html('output.html')
 
-    pdfkit.from_file('output.html', 'barsHistoryLastYear.pdf')
+    pdfkit.from_file('output.html', 'barsHistoryLastYear.pdf', options=defaultOptions)
 
 def getStockBarsForLastWeek(stock_client: StockHistoricalDataClient = stock_client, symbols: list=default_stocks, start: datetime=date_by_adding_business_days(datetime.now(timezone.utc), 5), timeframe: TimeFrame = TimeFrame.Day):
     multisymbol_request_params = StockBarsRequest(symbol_or_symbols=symbols, start=start, timeframe=timeframe)
@@ -242,7 +262,7 @@ def getStockBarsForLastWeek(stock_client: StockHistoricalDataClient = stock_clie
     dataframe.to_pickle("barsHistoryWeek_df")
     dataframe.to_html('output.html')
 
-    pdfkit.from_file('output.html', 'barsHistoryWeek.pdf')
+    pdfkit.from_file('output.html', 'barsHistoryWeek.pdf', options=defaultOptions)
 
 def getStockBarsForLastMonth(stock_client: StockHistoricalDataClient = stock_client, symbols: list=default_stocks, start: datetime=date_by_adding_business_days(datetime.now(timezone.utc), 30), timeframe: TimeFrame = TimeFrame.Week):
     multisymbol_request_params = StockBarsRequest(symbol_or_symbols=symbols, start=start, timeframe=timeframe)
@@ -253,7 +273,7 @@ def getStockBarsForLastMonth(stock_client: StockHistoricalDataClient = stock_cli
     dataframe.to_pickle("barsHistoryMonth_df")
     dataframe.to_html('output.html')
 
-    pdfkit.from_file('output.html', 'barsHistoryMonth.pdf')
+    pdfkit.from_file('output.html', 'barsHistoryMonth.pdf', options=defaultOptions)
 
 def getStockBarsForDay(stock_client: StockHistoricalDataClient = stock_client, symbols: list=default_stocks, start: datetime=date_by_adding_business_days(datetime.now(timezone.utc), 1), timeframe: TimeFrame = TimeFrame(amount=30, unit=TimeFrameUnit.Minute)):
     multisymbol_request_params = StockBarsRequest(symbol_or_symbols=symbols, start=start, timeframe=timeframe)
@@ -261,16 +281,18 @@ def getStockBarsForDay(stock_client: StockHistoricalDataClient = stock_client, s
     latest_multisymbol_bars = stock_client.get_stock_bars(multisymbol_request_params)
 
     dataframe = latest_multisymbol_bars.df
+
     dataframe.to_pickle("barsHistoryDay_df")
+    # html = (dataframe.style.set_table_styles([{'selector': 'th', 'props': [('font-size', '1px')]}]).set_properties(**{'font-size': '1px', 'header-size': '1px'}))
     dataframe.to_html('output.html')
 
-    pdfkit.from_file('output.html', 'barsHistoryDay.pdf')
+    pdfkit.from_file('output.html', 'barsHistoryDay.pdf', options=defaultOptions)
 
 if __name__ == "__main__":
     # getCurrentSnapshots()
-    # getStockTrades(symbols=['AAPL', 'GOOG', 'AMZN', 'TSLA'], start=datetime.now(timezone.utc).replace(hour=16, minute=7, second=0, microsecond=0))
-    # getStockQuotes()
+    getStockTrades(symbols=['AAPL', 'GOOG', 'AMZN', 'TSLA'], start=datetime.now(timezone.utc) - timedelta(minutes=5))
+    # getStockQuotes(symbols=['AAPL', 'GOOG', 'AMZN', 'TSLA'], start=datetime.now(timezone.utc) - timedelta(minutes=1))
     # getStockBarsForLastWeek()
     # getStockBarsForLastYear()
     # getStockBarsForDay()
-    getAccountDetails()
+    # getAccountDetails()
