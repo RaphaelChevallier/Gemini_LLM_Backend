@@ -266,8 +266,8 @@ def createPlan():
                     commands = []
 
 if __name__ == "__main__":
-    # llm_year_analysis()
-    # llm_month_analysis()
-    # llm_week_analysis()
+    llm_year_analysis()
+    llm_month_analysis()
+    llm_week_analysis()
     llm_current_analysis()
-    createPlan()
+    # createPlan()
