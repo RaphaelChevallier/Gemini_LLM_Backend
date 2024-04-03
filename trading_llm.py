@@ -2,6 +2,7 @@ import base64
 import json
 import os
 from datetime import datetime, timezone
+import sys
 
 import pandas as pd
 import vertexai
@@ -159,6 +160,16 @@ def llm_current_analysis():
             file_data.update(dictionary)
             outfile.seek(0)
             json.dump(file_data, outfile, indent = 4)
+        try:
+            f = open ('analysis.json', "r")
+            json.loads(f.read())
+        except:
+            with open("analysis.json", "r+") as outfile:
+                outfile.seek(0)
+                json.dump(data, outfile, indent = 4)
+        finally:
+            f.close()
+        
 
 def createPlan():
     chat = ChatAgentModel.start_chat()
@@ -187,12 +198,12 @@ def createPlan():
         You currently have numerous tools at your disposal such as "get_specific_ticker_symbol_market_snapshots" to assess what actions you want to take between selling, or holding current positions. Always use the tool! The tool gets you a current snapshot of all the stocks you want to analyze more closely to help make your decision for the next 30 minutes by giving you data on latest trade, latest quote, yesterday bar chart and today's current chart as well as the current minute interval bar candle.
         Make a decision on what stocks to sell for the next 30 minutes or to hold your current positions. Do not sell stocks that currently have an active order! Do not sell positions that you do not have! Please be very specific in the actions you want to take including price to sell, quantity to sell, etc."""]
     elif portfolioState == []:
-        prompt = [f"""You are an expert stock day trader. You make trades every 30 minutes to maximize profits. You can only buy. You only have ${buyingPower} dollars in USD. You can only buy a max of $5000 dollars worth for each stock you want to buy. Consider your open orders: {orderState}. After viewing the yearly, monthly, weekly, and the day bar charts earlier in our context and previous messages keep them in mind. Prioritize day trading strategies
+        prompt = [f"""You are an expert stock day trader. You make trades every 30 minutes to maximize profits. You can only buy. You only have ${buyingPower} dollars in USD. Do not go over this limit! Consider your open orders: {orderState}. After viewing the yearly, monthly, weekly, and the day bar charts earlier in our context and previous messages keep them in mind. Prioritize day trading strategies
         and the current day bar chart analysis and the market snapshot data from your tool with only some minor influence from the other longer interval charts. Consider all ticker symbols that have been analyzed. Let's move to make market decisions.
         You currently have numerous tools at your disposal such as "get_specific_ticker_symbol_market_snapshots" to assess what actions you want to take between buying, or holding current positions or if you want to get new positions. Always use the tool! The tool gets you a current snapshot of all the stocks you want to analyze more closely to help make your decision for the next 30 minutes by giving you data on latest trade, latest quote, yesterday bar chart and today's current chart as well as the current minute interval bar candle.
         Make a decision on what stocks to buy for the next 30 minutes or to hold your current positions or new positions. Consider all ticker symbols that have been analyzed and ones in current positions. Do not buy stocks that currently have an active order! Please be very specific in the actions you want to take including price to buy, quantity to buy, etc."""]
     else:
-        prompt = [f"""You are an expert stock day trader. You only have ${buyingPower} dollars in USD.You can only buy a max of $5000 dollars worth for each stock you want to buy.  Consider your current portfolio: {portfolioState} and consider your open orders: {orderState}. You make trades every 30 minutes to maximize profits so view these trades as short term. After viewing the yearly, monthly, weekly, and the day bar charts earlier in our context and previous messages keep them in mind. Prioritize day trading strategies
+        prompt = [f"""You are an expert stock day trader. You only have ${buyingPower} dollars in USD. Do not go over this limit! Consider your current portfolio: {portfolioState} and consider your open orders: {orderState}. You make trades every 30 minutes to maximize profits so view these trades as short term. After viewing the yearly, monthly, weekly, and the day bar charts earlier in our context and previous messages keep them in mind. Prioritize day trading strategies
         and the current day bar chart analysis and the market snapshot data from your tool with only some minor influence from the other longer interval charts as well as use the performances of your current positions and their intraday performance. Consider all ticker symbols that have been analyzed. Let's move to make market decisions.
         You currently have numerous tools at your disposal such as "get_specific_ticker_symbol_market_snapshots" to assess what actions you want to take between buying, selling, or holding current positions or if you want to get new positions. Always use the tool! The tool gets you a current snapshot of all the stocks you want to analyze more closely to help make your decision for the next 30 minutes by giving you data on latest trade, latest quote, yesterday bar chart and today's current chart as well as the current minute interval bar candle.
         Make a decision on what stocks to buy and sell for the next 30 minutes or to hold your current positions or new positions. Consider all ticker symbols that have been analyzed and ones in current positions. Do not buy or sell stocks that currently have an active order! Do not sell positions that you do not have! Please be very specific in the actions you want to take including price to buy/sell, quantity to buy/sell, etc."""]
@@ -240,7 +251,7 @@ def createPlan():
             else:
                 if float(buyingPower) > 10000.0:
                     buyingPower = 10000.0
-                newPrompt = [f"""You are an expert day trader. This is your result from analysis: {summary}. Ok you have made your analysis now and can execute on it by using your tool. You only have ${buyingPower} dollars in USD. You can only buy a max of $5000 dollars worth for each stock you want to buy! Recalculate qty of each stock with the price in the summary so it doesnt go over the limit. Divide the buying power dollar amount with all the stocks so you have orders for each one. You must evaluate your current positions portfolio: {portfolioState} and evaluate your already open orders to not duplicate: {orderState}. Do not buy or sell stocks that currently have an active order! Do not sell positions that you do not have! If portfolio is empty then you have nothing to sell! Use your tool to create your orders on market for both buy and sell commands. Specify the list of ticker symbols, list of prices, list of quantities, and list of limit order commands ('sell' or 'buy'). These lists should be respective to the list of ticker symbols."""]
+                newPrompt = [f"""You are an expert day trader. This is your most up to date analysis: {summary}. With this analysis of symbol tickers you can execute limit orders on them by using your tool. You only have ${buyingPower} dollars in USD. Do not go over this limit! Divide the buying power dollar amount with all the stocks so you have orders for each one. You must evaluate your current positions portfolio: {portfolioState} and evaluate your already open orders to not duplicate: {orderState}. Do not buy or sell stocks that currently have an active order! Do not sell positions that you do not have! If portfolio is empty then you have nothing to sell! Use your tool to create your orders on market for both buy and sell commands. Specify the list of ticker symbols, list of prices, list of quantities, and list of limit order commands ('sell' or 'buy'). These lists should be respective to the list of ticker symbols."""]
             final = AgentModel.generate_content(newPrompt, generation_config=config, tools=[createOrder])
             if final.candidates and final.candidates[0].content.parts[0].function_call.name == "create_new_limit_order":
                 try:
@@ -266,8 +277,8 @@ def createPlan():
                     commands = []
 
 if __name__ == "__main__":
-    llm_year_analysis()
-    llm_month_analysis()
-    llm_week_analysis()
+    # llm_year_analysis()
+    # llm_month_analysis()
+    # llm_week_analysis()
     llm_current_analysis()
     # createPlan()

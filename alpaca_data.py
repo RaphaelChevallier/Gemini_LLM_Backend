@@ -37,6 +37,7 @@ crypto_client = CryptoHistoricalDataClient()
 
 trading_client = TradingClient(os.getenv('APCA-API-KEY-ID'),  os.getenv('APCA-API-SECRET-KEY'), paper=True)
 
+default_crypto=['BTC/USD', 'ETH/USD', 'LTC/USD']
 default_stocks=['MSFT',
 'AAPL',
 'NVDA',
@@ -163,7 +164,12 @@ def getCurrentSnapshots(stock_client: StockHistoricalDataClient = stock_client, 
 
     latest_multisymbol_snapshots = stock_client.get_stock_snapshot(multisymbol_request_params)
 
-    print(latest_multisymbol_snapshots)
+    return latest_multisymbol_snapshots
+
+def getCurrentSnapshots(crypto_client: CryptoHistoricalDataClient = crypto_client, symbols: list=default_crypto):
+    multisymbol_request_params = StockSnapshotRequest(symbol_or_symbols=symbols)
+
+    latest_multisymbol_snapshots = stock_client.get_stock_snapshot(multisymbol_request_params)
 
     return latest_multisymbol_snapshots
 
