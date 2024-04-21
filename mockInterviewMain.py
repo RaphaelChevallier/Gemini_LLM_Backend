@@ -4,15 +4,18 @@ from datetime import datetime
 
 import vertexai
 from chromadb.utils import embedding_functions
+from dotenv import load_dotenv
 from google.auth.transport.requests import Request
 from google.oauth2.service_account import Credentials
 from vertexai.generative_models import GenerativeModel
 
 import mockInterviewLLM
 
+load_dotenv(".env", override=True)
+
 credentials = Credentials.from_service_account_file(os.getenv('GOOGLE_KEY_PATH'), scopes=['https://www.googleapis.com/auth/cloud-platform'])
 if credentials.expired:
-   credentials.refresh(Request())
+    credentials.refresh(Request())
 
 vertexai.init(project = os.getenv('GOOGLE_PROJECT_ID'), location = os.getenv('GOOGLE_REGION'), credentials = credentials)
 
@@ -27,10 +30,13 @@ def startLLMInterview(codeAssesment, user_email, codeLanguage, sessionId):
 
     chat = MainAgentModel.start_chat()
     config = {"max_output_tokens": 800, "temperature": 0.2, "top_p": 1, "top_k": 32}
-    response = MainAgentModel.generate_content("Hello there", generation_config=config)
+    prompt = [f"""You are an interview at a major software company. You are interviewing an individual for a software engineering role and have decided to give him a coding assesment.
+              You are here to help him work through the problem as well as challenge him a bit and get to understand him a bit better. Here is the coding problem you are presenting him today that you'd like him to solve: {codeAssesment}. This is the coding language he is using so far: {codeLanguage}.
+              Start by introducing yourself by using a human name such as Charlie or something of your choosing. Make this seem as a normal interview. Give a brief rundown of the coding assesment and have him get started. He has one hour."""]
+    response = chat.send_message(prompt, generation_config=config)
     print(response)
     sh = shelve.open("sessions")
-    sh[sessionId] = {'userEmail': user_email, 'startTime': datetime.now() ,'codeAssesment': codeAssesment, 'codeLanguage': codeLanguage, 'aiChat': chat}
+    sh[sessionId] = {'userEmail': user_email, 'startTime': datetime.now() ,'codeAssesment': codeAssesment, 'codeLanguage': codeLanguage}
     sh.close()
     print("done")
     # if chat_history_raw_messages:
