@@ -26,7 +26,9 @@ def startLLMInterview(codeAssesment, user_email, codeLanguage, sessionId):
     # chat_history_raw_messages = database_attom.getLatestChatHistoryFromUser(user_id)
 
     chat = MainAgentModel.start_chat()
-
+    config = {"max_output_tokens": 800, "temperature": 0.2, "top_p": 1, "top_k": 32}
+    response = MainAgentModel.generate_content("Hello there", generation_config=config)
+    print(response)
     sh = shelve.open("sessions")
     sh[sessionId] = {'userEmail': user_email, 'startTime': datetime.now() ,'codeAssesment': codeAssesment, 'codeLanguage': codeLanguage, 'aiChat': chat}
     sh.close()
