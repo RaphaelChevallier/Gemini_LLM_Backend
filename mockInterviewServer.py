@@ -67,11 +67,35 @@ def startInterview():
     if decoded_data:
         print("Token is valid, data:", decoded_data)
         print(f"Starting the interview with {sessionId}!")
-        mockInterviewMain.startLLMInterview(currentAssesmentDescription, email, codeLanguage, sessionId)
-        return {"startInterview": True}
+        response = mockInterviewMain.startLLMInterview(currentAssesmentDescription, email, codeLanguage, sessionId)
+        if response:
+            return {"startInterview": True, "AIMessage" : response}
+        else:
+            return {"startInterview": False}
     else:
         print("Invalid token or corrupted data")
         return {"startInterview": False}
+    
+@app.route("/ai/getAdvice" , methods=["POST"])
+def getAdvice():
+    codeLanguage = request.json['codeLanguage']
+    currentAssesmentDescription = request.json['currentAssesmentDescription']
+    currentCode = request.json['currentCode']
+    email = request.json['email']
+    sessionId = request.json['sessionId']
+    # Verify token
+    decoded_data = verify_token(sessionId, os.getenv('TOKEN_SECRET_SECURE').encode('utf-8'))
+    if decoded_data:
+        print("Token is valid, data:", decoded_data)
+        print(f"Giving Code Advice to {sessionId}!")
+        response = mockInterviewMain.getAdvice(currentAssesmentDescription, email, codeLanguage, currentCode, sessionId)
+        if response:
+            return {"response": True, "AIMessage" : response}
+        else:
+            return {"response": False}
+    else:
+        print("Invalid token or corrupted data")
+        return {"response": False}
 
 @app.route("/ai/endInterview" , methods=["POST"])
 def endInterview():
