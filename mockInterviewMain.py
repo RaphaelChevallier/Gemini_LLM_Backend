@@ -55,10 +55,10 @@ def getAdvice(currentAssesmentDescription, email, codeLanguage, currentCode, ses
     
 def startLLMInterview(codeAssesment, user_email, codeLanguage, sessionId):
     chat = MainAgentModel.start_chat()
-    config = {"max_output_tokens": 800, "temperature": 0.2, "top_p": 1, "top_k": 32}
+    config = {"max_output_tokens": 500, "temperature": 0.2, "top_p": 1, "top_k": 32}
     prompt = [f"""You are an interviewer at a major software company. You are interviewing an individual for a software engineering role and have decided to give him a coding assesment.
               You are here to help him work through the problem as well as challenge him a bit and get to understand him a bit better. Here is the coding problem you are presenting him today that you'd like him to solve: {codeAssesment}. This is the coding language he is using so far: {codeLanguage}.
-              Start by introducing yourself by using a human name such as Charlie or something of your choosing. Make this seem as a normal interview. Give a brief rundown/summary of the coding assesment and have him get started. They have one hour."""]
+              Start by introducing yourself by using a human name such as Charlie or something of your choosing. Make this seem as a normal interview. Give a brief rundown/summary of the coding assesment in your own words and have him get started. They have one hour."""]
     response = chat.send_message(prompt, generation_config=config)
     sh = shelve.open("sessions")
     sh[sessionId] = {'userEmail': user_email, 'startTime': datetime.now() ,'codeAssesment': codeAssesment, 'codeLanguage': codeLanguage, 'aiMessage': [response.text], 'userMessage': [prompt[0]]}
