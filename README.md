@@ -11,22 +11,22 @@ This codebase is built around the use of AI models, particularly those from Vert
 1. **Chat History Management**: 
    - Utilizes ChromaDB to store and manage chat histories.
    - AI models analyze and retrieve relevant past interactions to enhance user experience.
-   - **Folder/Files**: `vectorstore.py`, `database_attom.py`
+   - **Relevant Files**: `vectorstore.py`, `main.py`
 
 2. **Real Estate Strategy Development**:
    - Converts PDF documents into text and processes them to develop real estate strategies.
    - Uses AI to split text into meaningful chunks and store them in a vector database for efficient retrieval.
-   - **Folder/Files**: `vectorstore.py`, `public/` (for PDF files)
+   - **Relevant Files**: `vectorstore.py`
 
 3. **Mock Interviews**:
    - Simulates real-world interview scenarios using AI models.
    - Provides feedback and guidance to users based on their code submissions and interactions.
-   - **Folder/Files**: `mockInterviewMain.py`, `mockInterviewLLM.py`
+   - **Relevant Files**: `mockInterviewMain.py`, `mockInterviewLLM.py`
 
 4. **Trading Analysis**:
    - Analyzes stock market data to provide insights and trading strategies.
    - Uses AI to generate content and make informed decisions based on historical and current market data.
-   - **Folder/Files**: `trading_llm.py`, `alpaca_data.py`, `trading_llm_tools.py`
+   - **Relevant Files**: `trading_llm.py`, `trading_llm_tools.py`
 
 ## AI Models
 
@@ -56,3 +56,17 @@ Each project in this codebase can be run independently, making it easy to deploy
 ## Conclusion
 
 This codebase offers a robust set of AI-powered solutions that can be easily deployed and managed. Whether you're looking to enhance user interactions, develop strategic insights, or simulate real-world scenarios, this repository provides the tools and models to achieve your goals.
+
+### Retrieval-Augmented Generation (RAG)
+
+RAG is used to enhance the AI models' ability to generate accurate and contextually relevant responses by retrieving pertinent information from external sources. This involves:
+
+- **Vector Databases**: ChromaDB is utilized to store and retrieve vectorized representations of data, enabling efficient similarity searches and retrieval of relevant documents.
+- **Prompt Chaining**: Complex queries are broken down into smaller, manageable prompts that are processed sequentially to build a comprehensive response.
+
+### AI Agents and LangChain
+
+The codebase leverages AI agents and LangChain to facilitate advanced interactions and decision-making processes:
+
+- **AI Agents**: These are autonomous entities that perform specific tasks, such as data retrieval, analysis, and response generation. They are designed to operate independently and make decisions based on predefined rules and learned patterns.
+- **LangChain**: This framework is used to manage and orchestrate the interactions between different AI agents, ensuring seamless communication and task execution.
