@@ -11,18 +11,22 @@ This codebase is built around the use of AI models, particularly those from Vert
 1. **Chat History Management**: 
    - Utilizes ChromaDB to store and manage chat histories.
    - AI models analyze and retrieve relevant past interactions to enhance user experience.
+   - **Folder/Files**: `vectorstore.py`, `database_attom.py`
 
 2. **Real Estate Strategy Development**:
    - Converts PDF documents into text and processes them to develop real estate strategies.
    - Uses AI to split text into meaningful chunks and store them in a vector database for efficient retrieval.
+   - **Folder/Files**: `vectorstore.py`, `public/` (for PDF files)
 
 3. **Mock Interviews**:
    - Simulates real-world interview scenarios using AI models.
    - Provides feedback and guidance to users based on their code submissions and interactions.
+   - **Folder/Files**: `mockInterviewMain.py`, `mockInterviewLLM.py`
 
 4. **Trading Analysis**:
    - Analyzes stock market data to provide insights and trading strategies.
    - Uses AI to generate content and make informed decisions based on historical and current market data.
+   - **Folder/Files**: `trading_llm.py`, `alpaca_data.py`, `trading_llm_tools.py`
 
 ## AI Models
 
